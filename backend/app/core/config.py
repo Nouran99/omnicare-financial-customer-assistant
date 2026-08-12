@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     claim_amount_min: float = 0.0
     claim_amount_decimal_places: int = 2
     initial_claim_status: str = "Submitted"
+    claim_id_prefix: str = "CLM-"
+    claim_id_random_hex_length: int = 8
+    claim_id_generation_attempts: int = 5
     request_id_max_length: int = 64
     policy_section_id_max_length: int = 64
     policy_section_title_max_length: int = 256
@@ -81,6 +84,8 @@ class Settings(BaseSettings):
         "claim_type_max_length",
         "claim_status_max_length",
         "claim_description_max_length",
+        "claim_id_random_hex_length",
+        "claim_id_generation_attempts",
         "request_id_max_length",
         "policy_section_id_max_length",
         "policy_section_title_max_length",
@@ -124,6 +129,14 @@ class Settings(BaseSettings):
         if value < 0:
             raise ValueError("claim_amount_decimal_places must not be negative")
         return value
+
+    @field_validator("claim_id_prefix")
+    @classmethod
+    def validate_claim_id_prefix(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("claim_id_prefix must not be blank")
+        return normalized
 
     @field_validator("initial_claim_status")
     @classmethod

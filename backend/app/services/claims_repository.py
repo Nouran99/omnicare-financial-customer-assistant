@@ -108,6 +108,12 @@ class AtomicClaimsPersistence:
         self._repository = repository
         self._lock = RLock()
 
+    @property
+    def repository(self) -> ClaimsRepository:
+        """Return the backing repository for trusted ID preflight checks."""
+
+        return self._repository
+
     def append(self, claim: StoredClaim) -> ClaimPersistenceResult:
         """Append one validated claim and return success only after replacement."""
 

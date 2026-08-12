@@ -21,6 +21,10 @@ Amounts must be finite numeric values greater than the configured `CLAIM_AMOUNT_
 
 All operational limits and the initial claim status are loaded through `Settings`. They are represented in `.env.example` and passed through Compose. The default initial status is the confirmed value `Submitted`, but deployments can override it through `INITIAL_CLAIM_STATUS`.
 
+## Submission confirmation IDs
+
+The `submit_claim` tool generates the confirmation ID inside the trusted application layer. The default convention is `CLM-` followed by eight uppercase hexadecimal characters, for example `CLM-7A3F91C2`. The prefix, hex length, and maximum generation attempts are configuration-driven through `CLAIM_ID_PREFIX`, `CLAIM_ID_RANDOM_HEX_LENGTH`, and `CLAIM_ID_GENERATION_ATTEMPTS`. The tool checks generated IDs against the current repository before writing and never accepts a caller-supplied claim ID, status, path, or hidden control field.
+
 ## Repository boundaries
 
 `ClaimsRepository` provides exact claim-ID lookup and typed not-found results. It never exposes the full claims array through an API route and does not mutate data during lookup.
