@@ -1,0 +1,35 @@
+services:
+  backend:
+    image: python:3.11-slim
+    working_dir: /workspace/backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-replace-with-a-verified-model-name}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      POLICY_FILE_PATH: ${POLICY_FILE_PATH:-/workspace/data/sample_policy.md}
+      CLAIMS_FILE_PATH: ${CLAIMS_FILE_PATH:-/workspace/data/mock_claims.json}
+    volumes:
+      - ./backend:/workspace/backend
+      - ./data:/workspace/data
+    command: ["sleep", "infinity"]
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /workspace/frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      BACKEND_ORIGIN: http://backend:8000
+    volumes:
+      - ./frontend:/workspace/frontend
+      - frontend_node_modules:/workspace/frontend/node_modules
+    depends_on:
+      - backend
+    command: ["sleep", "infinity"]
+
+volumes:
+  frontend_node_modules:

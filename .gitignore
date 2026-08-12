@@ -1,0 +1,80 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.coverage.xml
+*.egg-info/
+build/
+dist/
+
+# Node.js and Next.js
+node_modules/
+.next/
+out/
+.turbo/
+.nx/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local retrieval indexes and runtime data
+.chroma/
+chroma_db/
+.faiss/
+qdrant_storage/
+vector_store/
+*.sqlite3
+*.db
+runtime-data/
+tmp/
+temp/
+
+# Generated claim fixtures and logs
+*.claims.json
+*.tmp
+*.log
+logs/
+
+# Tests and local artifacts
+.pytest_cache/
+playwright-report/
+test-results/
+coverage/
+screenshots/
+
+# Docker and tooling
+.docker/
+Dockerfile.local
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local Manus / agent artifacts
+.manus/
