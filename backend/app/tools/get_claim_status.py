@@ -55,6 +55,11 @@ class GetClaimStatusTool(BaseTool):
 
         return self._last_event
 
+    def reset_observation(self) -> None:
+        """Clear the latest event before a new Flow request."""
+
+        self._last_event = None
+
     def _run(self, claim_id: str) -> GetClaimStatusOutput:
         try:
             lookup = ClaimStatusLookupRequest(claim_id=claim_id)

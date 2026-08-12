@@ -66,6 +66,10 @@ services:
       DRAFT_CLAIM_SUCCESS_PATTERNS: ${DRAFT_CLAIM_SUCCESS_PATTERNS:-claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number}
       CREW_TASK_DESCRIPTION: ${CREW_TASK_DESCRIPTION:-Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. Follow the deterministic safety result and do not invent coverage or claim outcomes.}
       CREW_TASK_EXPECTED_OUTPUT: ${CREW_TASK_EXPECTED_OUTPUT:-Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event.}
+      FLOW_BLOCKED_RESPONSE: ${FLOW_BLOCKED_RESPONSE:-I cannot help with that request.}
+      FLOW_PROVIDER_ERROR_RESPONSE: ${FLOW_PROVIDER_ERROR_RESPONSE:-The assistant is temporarily unavailable. Please try again later.}
+      FLOW_TOOL_ERROR_RESPONSE: ${FLOW_TOOL_ERROR_RESPONSE:-The requested operation could not be completed safely.}
+      FLOW_VALIDATION_ERROR_RESPONSE: ${FLOW_VALIDATION_ERROR_RESPONSE:-I cannot provide a grounded answer for that request yet.}
     volumes:
       - ./backend:/workspace/backend
       - ./data:/workspace/data

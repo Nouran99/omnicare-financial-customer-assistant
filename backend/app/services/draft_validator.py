@@ -66,6 +66,20 @@ def validate_assistant_draft(
     return draft
 
 
+def parse_task_output(
+    task_output: TaskOutput | AssistantDraft | Mapping[str, Any] | str,
+) -> AssistantDraft:
+    """Parse a CrewAI task output without applying evidence-dependent rules yet."""
+
+    raw: Any = task_output
+    if isinstance(task_output, TaskOutput):
+        raw = task_output.pydantic or task_output.json_dict or task_output.raw
+    try:
+        return raw if isinstance(raw, AssistantDraft) else AssistantDraft.model_validate(raw)
+    except Exception as exc:
+        raise DraftValidationError("malformed_draft") from exc
+
+
 def validate_task_output(
     task_output: TaskOutput | AssistantDraft | Mapping[str, Any] | str,
     *,
@@ -73,16 +87,10 @@ def validate_task_output(
 ) -> AssistantDraft:
     """Parse and validate a CrewAI task output without exposing raw output details."""
 
-    raw: Any = task_output
-    if isinstance(task_output, TaskOutput):
-        raw = task_output.pydantic or task_output.json_dict or task_output.raw
-    try:
-        draft = raw if isinstance(raw, AssistantDraft) else AssistantDraft.model_validate(raw)
-        return validate_assistant_draft(draft, settings=settings)
-    except DraftValidationError:
-        raise
-    except Exception as exc:
-        raise DraftValidationError("malformed_draft") from exc
+    return validate_assistant_draft(
+        parse_task_output(task_output),
+        settings=settings,
+    )
 
 
 def support_request_guardrail(

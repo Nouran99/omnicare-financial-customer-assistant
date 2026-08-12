@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     draft_claim_success_patterns: str = "claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number"
     crew_task_description: str = "Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. Follow the deterministic safety result and do not invent coverage or claim outcomes."
     crew_task_expected_output: str = "Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event."
+    flow_blocked_response: str = "I cannot help with that request."
+    flow_provider_error_response: str = "The assistant is temporarily unavailable. Please try again later."
+    flow_tool_error_response: str = "The requested operation could not be completed safely."
+    flow_validation_error_response: str = "I cannot provide a grounded answer for that request yet."
     request_id_max_length: int = 64
     policy_section_id_max_length: int = 64
     policy_section_title_max_length: int = 256

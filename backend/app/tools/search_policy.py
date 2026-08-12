@@ -31,6 +31,7 @@ class SearchPolicyTool(BaseTool):
 
     _retriever: PolicyRetriever | None = PrivateAttr(default=None)
     _indexed: bool = PrivateAttr(default=False)
+    _last_output: SearchPolicyOutput | None = PrivateAttr(default=None)
 
     def __init__(
         self,
@@ -41,34 +42,53 @@ class SearchPolicyTool(BaseTool):
         super().__init__(**data)
         self._retriever = retriever
 
+    @property
+    def last_output(self) -> SearchPolicyOutput | None:
+        """Return the latest sanitized policy result for Flow composition."""
+
+        return self._last_output
+
+    def reset_observation(self) -> None:
+        """Clear the latest result before a new Flow request."""
+
+        self._last_output = None
+
     def _run(self, query: str) -> SearchPolicyOutput:
         try:
             retriever = self._get_retriever()
             retrieval = retriever.search(query)
         except (PolicyQueryError, PolicyDocumentError, VectorStoreError):
-            return SearchPolicyOutput(
+            output = SearchPolicyOutput(
                 status="failure",
                 message="Policy retrieval is temporarily unavailable.",
             )
+            self._last_output = output
+            return output
         except Exception:  # pragma: no cover - defensive tool boundary
-            return SearchPolicyOutput(
+            output = SearchPolicyOutput(
                 status="failure",
                 message="Policy retrieval failed safely.",
             )
+            self._last_output = output
+            return output
 
         if not retrieval.found:
-            return SearchPolicyOutput(
+            output = SearchPolicyOutput(
                 status="not_found",
                 message="No sufficiently relevant policy evidence was found.",
             )
+            self._last_output = output
+            return output
 
-        return SearchPolicyOutput(
+        output = SearchPolicyOutput(
             status="success",
             results=[
                 self._evidence_from_chunk(result.chunk)
                 for result in retrieval.chunks
             ],
         )
+        self._last_output = output
+        return output
 
     def _get_retriever(self) -> PolicyRetriever:
         if self._retriever is None:
