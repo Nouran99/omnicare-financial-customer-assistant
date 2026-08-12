@@ -18,6 +18,7 @@ from ..services.draft_validator import (
     parse_task_output,
     validate_assistant_draft,
 )
+from ..services.tool_allowlist import ToolAllowlist, ToolAllowlistError
 from ..services.tool_summary_sanitizer import (
     ToolSummarySanitizationError,
     sanitize_tool_event,
@@ -55,6 +56,7 @@ class OmniCareSupportFlow:
         self.settings = settings or get_settings()
         self.provider = provider
         self.safety_gate = safety_gate or DeterministicSafetyGate(self.settings)
+        self._tool_allowlist = ToolAllowlist(self.settings)
         self._crew = crew
         self._tools: list[Any] = list(tools or [])
 
@@ -151,6 +153,7 @@ class OmniCareSupportFlow:
                         had_tool_failure = True
                     actual_sources.extend(result.citation for result in output.results)
                     try:
+                        self._tool_allowlist.ensure_allowed(tool.name)
                         actual_events.append(
                             sanitize_tool_event(
                                 {
@@ -163,7 +166,7 @@ class OmniCareSupportFlow:
                                 settings=self.settings,
                             )
                         )
-                    except ToolSummarySanitizationError as exc:
+                    except (ToolAllowlistError, ToolSummarySanitizationError) as exc:
                         raise ToolFlowError from exc
             elif hasattr(tool, "last_tool_event"):
                 event = getattr(tool, "last_tool_event", None)
@@ -172,13 +175,14 @@ class OmniCareSupportFlow:
                     if event.status == "failure":
                         had_tool_failure = True
                     try:
+                        self._tool_allowlist.ensure_allowed(event.name)
                         actual_events.append(
                             sanitize_tool_event(
                                 event.model_dump(),
                                 settings=self.settings,
                             )
                         )
-                    except ToolSummarySanitizationError as exc:
+                    except (ToolAllowlistError, ToolSummarySanitizationError) as exc:
                         raise ToolFlowError from exc
 
         if had_tool_failure:

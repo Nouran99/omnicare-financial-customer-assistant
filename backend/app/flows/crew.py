@@ -17,6 +17,7 @@ from ..providers.deepseek import (
     ProviderCompletion,
     ProviderMessage,
 )
+from ..services.tool_allowlist import ToolAllowlist
 from ..tools.get_claim_status import GetClaimStatusTool
 from ..tools.search_policy import SearchPolicyTool
 from ..tools.submit_claim import SubmitClaimTool
@@ -26,6 +27,7 @@ class ProviderBackedCrewLLM(BaseLLM):
     """Adapt the application provider protocol to CrewAI's BaseLLM boundary."""
 
     _provider: LLMProvider = PrivateAttr()
+    _tool_allowlist: ToolAllowlist = PrivateAttr()
 
     def __init__(self, provider: LLMProvider, settings: Settings) -> None:
         model = settings.deepseek_model or "configured-provider-model"
@@ -36,6 +38,7 @@ class ProviderBackedCrewLLM(BaseLLM):
             max_tokens=None,
         )
         self._provider = provider
+        self._tool_allowlist = ToolAllowlist(settings)
 
     def call(
         self,
@@ -57,6 +60,8 @@ class ProviderBackedCrewLLM(BaseLLM):
         if completion.parsed is not None:
             return completion.parsed
         if completion.tool_calls:
+            for tool_call in completion.tool_calls:
+                self._tool_allowlist.ensure_allowed(tool_call.name)
             return [
                 {
                     "id": tool_call.id,

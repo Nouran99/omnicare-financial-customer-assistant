@@ -8,6 +8,7 @@ from typing import Any
 
 from ..core.config import Settings, get_settings
 from ..models.api import ToolCallSummary
+from .tool_allowlist import ToolAllowlist, ToolAllowlistError
 
 
 class ToolSummarySanitizationError(ValueError):
@@ -78,8 +79,12 @@ def sanitize_tool_event(
         max_length=resolved_settings.tool_status_max_length,
         settings=resolved_settings,
     )
-    if name not in {"search_policy", "get_claim_status", "submit_claim"} or status is None:
+    if status is None:
         raise ToolSummarySanitizationError
+    try:
+        ToolAllowlist(resolved_settings).ensure_allowed(name or "")
+    except ToolAllowlistError as exc:
+        raise ToolSummarySanitizationError from exc
 
     arguments = _mapping(event.get("arguments"))
     if name == "search_policy":
@@ -125,6 +130,9 @@ def sanitize_tool_event(
             arguments=safe_claim_id,
             result_summary=summary,
         )
+
+    if name != "submit_claim":
+        raise ToolSummarySanitizationError
 
     confirmation_id = _claim_id(
         event.get("confirmation_id", event.get("claim_id")),
