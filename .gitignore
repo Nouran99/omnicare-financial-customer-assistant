@@ -48,6 +48,7 @@ vector_store/
 *.sqlite3
 *.db
 runtime-data/
+runtime/
 tmp/
 temp/
 

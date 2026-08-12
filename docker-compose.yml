@@ -14,6 +14,18 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       POLICY_FILE_PATH: ${POLICY_FILE_PATH:-/workspace/data/sample_policy.md}
       CLAIMS_FILE_PATH: ${CLAIMS_FILE_PATH:-/workspace/data/mock_claims.json}
+      POLICY_INDEX_PATH: ${POLICY_INDEX_PATH:-/workspace/runtime/chroma}
+      POLICY_COLLECTION_NAME: ${POLICY_COLLECTION_NAME:-omnicare_policy}
+      POLICY_EMBEDDING_DIMENSION: ${POLICY_EMBEDDING_DIMENSION:-384}
+      POLICY_RETRIEVAL_TOP_K: ${POLICY_RETRIEVAL_TOP_K:-2}
+      POLICY_RETRIEVAL_MIN_RELEVANCE: ${POLICY_RETRIEVAL_MIN_RELEVANCE:-0.15}
+      POLICY_QUERY_MAX_LENGTH: ${POLICY_QUERY_MAX_LENGTH:-512}
+      POLICY_EMBEDDING_STOPWORDS: ${POLICY_EMBEDDING_STOPWORDS:-a,an,and,are,as,at,be,by,can,does,for,from,how,in,is,it,much,of,on,or,policy,the,to,what,when,where,with,available,cover,covered,coverage,damage}
+      POLICY_SECTION_ID_MAX_LENGTH: ${POLICY_SECTION_ID_MAX_LENGTH:-64}
+      POLICY_SECTION_TITLE_MAX_LENGTH: ${POLICY_SECTION_TITLE_MAX_LENGTH:-256}
+      POLICY_CHUNK_TEXT_MAX_LENGTH: ${POLICY_CHUNK_TEXT_MAX_LENGTH:-12000}
+      POLICY_SOURCE_FILE_MAX_LENGTH: ${POLICY_SOURCE_FILE_MAX_LENGTH:-256}
+      POLICY_CITATION_MAX_LENGTH: ${POLICY_CITATION_MAX_LENGTH:-512}
       USER_ID_MAX_LENGTH: ${USER_ID_MAX_LENGTH:-128}
       MESSAGE_MAX_LENGTH: ${MESSAGE_MAX_LENGTH:-8000}
       SOURCE_MAX_LENGTH: ${SOURCE_MAX_LENGTH:-512}
@@ -35,6 +47,7 @@ services:
     volumes:
       - ./backend:/workspace/backend
       - ./data:/workspace/data
+      - ./runtime:/workspace/runtime
     command: ["sleep", "infinity"]
 
   frontend:

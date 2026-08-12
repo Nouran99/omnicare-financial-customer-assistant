@@ -44,6 +44,18 @@ class Settings(BaseSettings):
     claim_amount_decimal_places: int = 2
     initial_claim_status: str = "Submitted"
     request_id_max_length: int = 64
+    policy_section_id_max_length: int = 64
+    policy_section_title_max_length: int = 256
+    policy_chunk_text_max_length: int = 12_000
+    policy_source_file_max_length: int = 256
+    policy_citation_max_length: int = 512
+    policy_index_path: str = "../runtime/chroma"
+    policy_collection_name: str = "omnicare_policy"
+    policy_embedding_dimension: int = 384
+    policy_retrieval_top_k: int = 2
+    policy_retrieval_min_relevance: float = 0.15
+    policy_query_max_length: int = 512
+    policy_embedding_stopwords: str = "a,an,and,are,as,at,be,by,can,does,for,from,how,in,is,it,much,of,on,or,policy,the,to,what,when,where,with,available,cover,covered,coverage,damage"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -69,11 +81,26 @@ class Settings(BaseSettings):
         "claim_status_max_length",
         "claim_description_max_length",
         "request_id_max_length",
+        "policy_section_id_max_length",
+        "policy_section_title_max_length",
+        "policy_chunk_text_max_length",
+        "policy_source_file_max_length",
+        "policy_citation_max_length",
+        "policy_embedding_dimension",
+        "policy_retrieval_top_k",
+        "policy_query_max_length",
     )
     @classmethod
     def validate_positive_limits(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("configured length and collection limits must be positive")
+        return value
+
+    @field_validator("policy_retrieval_min_relevance")
+    @classmethod
+    def validate_relevance_threshold(cls, value: float) -> float:
+        if not 0 <= value <= 1:
+            raise ValueError("policy_retrieval_min_relevance must be between 0 and 1")
         return value
 
     @field_validator("claim_amount_min")
