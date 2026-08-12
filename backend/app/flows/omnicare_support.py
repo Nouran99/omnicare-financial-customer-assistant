@@ -172,9 +172,9 @@ class OmniCareSupportFlow:
             raise ToolFlowError
 
         if not had_actual_observation:
-            return draft
+            return draft.model_copy(update={"sources": [], "tool_calls": []})
 
-        merged_sources = self._deduplicate(actual_sources + draft.sources)
+        merged_sources = self._deduplicate(actual_sources)
         return draft.model_copy(
             update={
                 "sources": merged_sources,

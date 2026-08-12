@@ -10,6 +10,7 @@ from threading import RLock
 
 from pydantic import ValidationError
 
+from ..core.paths import resolve_configured_path
 from ..models.claims import (
     ClaimPersistenceResult,
     ClaimStatusFound,
@@ -72,7 +73,7 @@ class ClaimsRepository:
     """Read-only exact-lookup repository over the configured claims fixture."""
 
     def __init__(self, claims_path: str | Path) -> None:
-        self._claims_path = Path(claims_path)
+        self._claims_path = resolve_configured_path(claims_path)
 
     @property
     def claims_path(self) -> Path:

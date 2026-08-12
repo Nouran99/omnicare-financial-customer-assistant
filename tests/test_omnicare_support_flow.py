@@ -201,6 +201,36 @@ def test_claim_status_and_submission_events_are_collected_without_raw_payloads()
     assert submit_response.tool_calls[0].arguments is None
 
 
+def test_claim_status_draft_sources_are_replaced_with_trusted_tool_sources() -> None:
+    status_tool = FakeClaimTool("get_claim_status")
+    crew = FakeCrew(
+        AssistantDraft(
+            response="Your claim is approved.",
+            sources=["untrusted-model-source"],
+            safety_result=allowed(),
+        ),
+        on_kickoff=lambda _: setattr(
+            status_tool,
+            "last_tool_event",
+            ClaimToolEvent(
+                name="get_claim_status",
+                status="success",
+                result_summary="Requested claim status returned.",
+            ),
+        ),
+    )
+    flow = OmniCareSupportFlow(
+        crew=crew,
+        tools=[status_tool],
+        settings=build_settings(),
+    )
+
+    response = flow.run(user_id="user-1", message="Check claim CLM-8821")
+
+    assert response.sources == []
+    assert [event.name for event in response.tool_calls] == ["get_claim_status"]
+
+
 def test_ungrounded_policy_answer_is_replaced_with_safe_validation_response() -> None:
     crew = FakeCrew(
         AssistantDraft(
