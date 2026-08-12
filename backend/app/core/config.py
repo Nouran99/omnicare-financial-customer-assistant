@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     tool_arguments_max_length: int = 1_000
     tool_result_max_length: int = 2_000
     max_tool_calls: int = 20
+    tool_summary_failure_response: str = "Tool execution failed safely."
+    tool_summary_redaction_patterns: str = "sk-,api_key,authorization,bearer,.env,system prompt,traceback,exception,claims file,claim file"
 
     claim_id_max_length: int = 64
     policy_number_max_length: int = 128

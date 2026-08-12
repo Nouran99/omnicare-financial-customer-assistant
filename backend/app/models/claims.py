@@ -190,6 +190,10 @@ class ClaimToolEvent(BaseModel):
 
     name: str = Field(...)
     status: str = Field(...)
+    arguments: dict[str, str] | None = Field(default=None)
+    claim_id: str | None = Field(default=None)
+    claim_status: str | None = Field(default=None)
+    confirmation_id: str | None = Field(default=None)
     request_id: str | None = Field(default=None)
     result_summary: str | None = Field(default=None)
 

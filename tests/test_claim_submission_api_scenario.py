@@ -138,7 +138,7 @@ def test_api_submission_appends_one_record_and_returns_confirmation(
             "name": "submit_claim",
             "status": "success",
             "arguments": None,
-            "result_summary": "Claim submitted successfully.",
+            "result_summary": "Claim submitted successfully. Confirmation ID: CLM-ABCDEF12.",
         }
     ]
     assert response.headers["X-Request-ID"] == "us034-submission"

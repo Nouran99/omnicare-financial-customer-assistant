@@ -97,8 +97,8 @@ def test_api_known_claim_status_uses_requested_record_only(
         {
             "name": "get_claim_status",
             "status": "success",
-            "arguments": None,
-            "result_summary": "Requested claim status returned.",
+            "arguments": claim_id,
+            "result_summary": f"Claim status: {expected_status}.",
         }
     ]
     assert response.headers["X-Request-ID"] == f"us033-{claim_id}"
@@ -136,7 +136,7 @@ def test_api_unknown_claim_returns_safe_not_found_and_does_not_mutate_fixture(
         {
             "name": "get_claim_status",
             "status": "not_found",
-            "arguments": None,
+            "arguments": "CLM-UNKNOWN",
             "result_summary": "No claim matched the requested ID.",
         }
     ]

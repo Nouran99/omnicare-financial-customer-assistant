@@ -32,6 +32,7 @@ class SearchPolicyTool(BaseTool):
     _retriever: PolicyRetriever | None = PrivateAttr(default=None)
     _indexed: bool = PrivateAttr(default=False)
     _last_output: SearchPolicyOutput | None = PrivateAttr(default=None)
+    _last_query: str | None = PrivateAttr(default=None)
 
     def __init__(
         self,
@@ -43,6 +44,12 @@ class SearchPolicyTool(BaseTool):
         self._retriever = retriever
 
     @property
+    def last_query(self) -> str | None:
+        """Return the latest submitted policy query for safe summary construction."""
+
+        return self._last_query
+
+    @property
     def last_output(self) -> SearchPolicyOutput | None:
         """Return the latest sanitized policy result for Flow composition."""
 
@@ -52,8 +59,10 @@ class SearchPolicyTool(BaseTool):
         """Clear the latest result before a new Flow request."""
 
         self._last_output = None
+        self._last_query = None
 
     def _run(self, query: str) -> SearchPolicyOutput:
+        self._last_query = query
         try:
             retriever = self._get_retriever()
             retrieval = retriever.search(query)

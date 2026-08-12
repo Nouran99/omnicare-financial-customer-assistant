@@ -102,7 +102,11 @@ class SubmitClaimTool(BaseTool):
         except Exception:  # pragma: no cover - defensive write boundary
             return self._failure("The claim submission failed safely.")
 
-        self._record_event("success", "Claim submitted successfully.")
+        self._record_event(
+            "success",
+            "Claim submitted successfully.",
+            confirmation_id=result.claim.claim_id,
+        )
         output = SubmitClaimOutput(
             status="success",
             claim_id=result.claim.claim_id,
@@ -143,10 +147,17 @@ class SubmitClaimTool(BaseTool):
         self._record_event("failure", message)
         return SubmitClaimOutput(status="failure", message=message)
 
-    def _record_event(self, status: str, result_summary: str) -> None:
+    def _record_event(
+        self,
+        status: str,
+        result_summary: str,
+        *,
+        confirmation_id: str | None = None,
+    ) -> None:
         self._last_event = ClaimToolEvent(
             name=self.name,
             status=status,
+            confirmation_id=confirmation_id,
             result_summary=result_summary,
         )
         log_tool_event(

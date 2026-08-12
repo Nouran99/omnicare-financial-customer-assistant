@@ -78,7 +78,12 @@ class GetClaimStatusTool(BaseTool):
                 claim=ClaimSummaryOutput.from_claim(result.claim),
                 message="Requested claim status returned.",
             )
-            self._record_event("success", "Requested claim status returned.")
+            self._record_event(
+                "success",
+                "Requested claim status returned.",
+                claim_id=result.claim.claim_id,
+                claim_status=result.claim.status,
+            )
             return output
 
         output = GetClaimStatusOutput(
@@ -86,7 +91,11 @@ class GetClaimStatusTool(BaseTool):
             claim_id=result.claim_id,
             message="No claim was found for the supplied claim ID.",
         )
-        self._record_event("not_found", "No claim matched the requested ID.")
+        self._record_event(
+            "not_found",
+            "No claim matched the requested ID.",
+            claim_id=result.claim_id,
+        )
         return output
 
     def _get_repository(self) -> ClaimsRepository:
@@ -98,10 +107,19 @@ class GetClaimStatusTool(BaseTool):
         self._record_event("failure", message)
         return GetClaimStatusOutput(status="failure", message=message)
 
-    def _record_event(self, status: str, result_summary: str) -> None:
+    def _record_event(
+        self,
+        status: str,
+        result_summary: str,
+        *,
+        claim_id: str | None = None,
+        claim_status: str | None = None,
+    ) -> None:
         self._last_event = ClaimToolEvent(
             name=self.name,
             status=status,
+            claim_id=claim_id,
+            claim_status=claim_status,
             result_summary=result_summary,
         )
         log_tool_event(

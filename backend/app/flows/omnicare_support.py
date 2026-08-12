@@ -18,6 +18,10 @@ from ..services.draft_validator import (
     parse_task_output,
     validate_assistant_draft,
 )
+from ..services.tool_summary_sanitizer import (
+    ToolSummarySanitizationError,
+    sanitize_tool_event,
+)
 from ..services.safety_gate import DeterministicSafetyGate
 from ..tools.get_claim_status import GetClaimStatusTool
 from ..tools.search_policy import SearchPolicyTool
@@ -146,27 +150,36 @@ class OmniCareSupportFlow:
                     if output.status == "failure":
                         had_tool_failure = True
                     actual_sources.extend(result.citation for result in output.results)
-                    actual_events.append(
-                        ToolCallSummary(
-                            name=tool.name,
-                            status=output.status,
-                            result_summary=output.message
-                            or "Policy evidence returned.",
+                    try:
+                        actual_events.append(
+                            sanitize_tool_event(
+                                {
+                                    "name": tool.name,
+                                    "status": output.status,
+                                    "query": getattr(tool, "last_query", None),
+                                    "result_summary": output.message
+                                    or "Policy evidence returned.",
+                                },
+                                settings=self.settings,
+                            )
                         )
-                    )
+                    except ToolSummarySanitizationError as exc:
+                        raise ToolFlowError from exc
             elif hasattr(tool, "last_tool_event"):
                 event = getattr(tool, "last_tool_event", None)
                 if event is not None:
                     had_actual_observation = True
                     if event.status == "failure":
                         had_tool_failure = True
-                    actual_events.append(
-                        ToolCallSummary(
-                            name=event.name,
-                            status=event.status,
-                            result_summary=event.result_summary,
+                    try:
+                        actual_events.append(
+                            sanitize_tool_event(
+                                event.model_dump(),
+                                settings=self.settings,
+                            )
                         )
-                    )
+                    except ToolSummarySanitizationError as exc:
+                        raise ToolFlowError from exc
 
         if had_tool_failure:
             raise ToolFlowError
