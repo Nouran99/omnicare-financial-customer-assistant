@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     deepseek_api_key: SecretStr | None = None
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str | None = None
+    deepseek_timeout_seconds: float = 30.0
     policy_file_path: str = "../data/sample_policy.md"
     claims_file_path: str = "../data/mock_claims.json"
 
@@ -94,6 +95,13 @@ class Settings(BaseSettings):
     def validate_positive_limits(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("configured length and collection limits must be positive")
+        return value
+
+    @field_validator("deepseek_timeout_seconds")
+    @classmethod
+    def validate_deepseek_timeout(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("deepseek_timeout_seconds must be positive")
         return value
 
     @field_validator("policy_retrieval_min_relevance")

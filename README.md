@@ -78,11 +78,11 @@ The backend package is imported from the repository root through the checked-in 
 .venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000
 ```
 
-The API contract, validation limits, safe error mapping, CORS behavior, request IDs, and structured logging are documented in [`docs/api-contract.md`](docs/api-contract.md). Claims validation, exact fixture contents, atomic persistence, description retention, and half-up amount rounding are documented in [`docs/claims-data-contract.md`](docs/claims-data-contract.md). Policy chunking, local Chroma indexing, threshold fallback, deterministic offline embeddings, and citation formatting are documented in [`docs/rag-contract.md`](docs/rag-contract.md).
+The API contract, validation limits, safe error mapping, CORS behavior, request IDs, and structured logging are documented in [`docs/api-contract.md`](docs/api-contract.md). Claims validation, exact fixture contents, atomic persistence, description retention, and half-up amount rounding are documented in [`docs/claims-data-contract.md`](docs/claims-data-contract.md). Policy chunking, local Chroma indexing, threshold fallback, deterministic offline embeddings, and citation formatting are documented in [`docs/rag-contract.md`](docs/rag-contract.md). The configurable DeepSeek adapter, safe provider-error boundary, fake-provider testing, and live-smoke-test policy are documented in [`docs/provider-adapter-contract.md`](docs/provider-adapter-contract.md).
 
 ## Configuration
 
-Copy `.env.example` to `.env` for local development and provide authorized provider configuration only in the local environment. Never commit `.env`, API keys, or generated secrets. Runtime validation limits, claim status, decimal precision, data paths, CORS origin, log level, Chroma storage, retrieval thresholds, and related values are configuration-driven through the settings documented in `.env.example`. `DEEPSEEK_MODEL` remains a placeholder until the authorized provider configuration is verified in a later integration story.
+Copy `.env.example` to `.env` for local development and provide authorized provider configuration only in the local environment. Never commit `.env`, API keys, or generated secrets. Runtime validation limits, claim status, decimal precision, data paths, CORS origin, log level, Chroma storage, retrieval thresholds, and related values are configuration-driven through the settings documented in `.env.example`. `DEEPSEEK_MODEL` remains a placeholder until authorized provider configuration is verified. Keep the real `DEEPSEEK_API_KEY` exclusively in an untracked local `.env` file; it must never appear in Git, source, tests, Compose defaults, logs, or generated archives.
 
 ## Development Scope
 
