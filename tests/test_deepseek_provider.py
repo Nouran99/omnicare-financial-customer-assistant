@@ -142,7 +142,10 @@ def test_missing_configuration_does_not_construct_a_client() -> None:
         calls.append(kwargs)
         raise AssertionError("factory must not be called without configuration")
 
-    provider = DeepSeekProvider(Settings(), client_factory=factory)
+    provider = DeepSeekProvider(
+        Settings(deepseek_api_key=None, deepseek_model=None),
+        client_factory=factory,
+    )
 
     with pytest.raises(ProviderError):
         provider.complete([ProviderMessage(role="user", content="Hello")])
