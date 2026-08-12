@@ -76,6 +76,18 @@ def test_agent_factory_accepts_fake_provider_without_network_calls() -> None:
     assert fake_provider.calls == 0
 
 
+def test_claim_tools_receive_injected_settings() -> None:
+    settings = Settings(
+        deepseek_model="deepseek-v4-flash",
+        claims_file_path="/tmp/configured-claims.json",
+    )
+    definition = OmniCareSupportAgent(provider=FakeProvider(), settings=settings)
+    tools = {tool.name: tool for tool in definition.build().tools}
+
+    assert tools["get_claim_status"]._settings is settings
+    assert tools["submit_claim"]._settings is settings
+
+
 def test_provider_bridge_delegates_only_when_explicitly_called() -> None:
     fake_provider = FakeProvider()
     bridge = ProviderBackedCrewLLM(fake_provider, build_settings())

@@ -38,6 +38,7 @@ class SubmitClaimTool(BaseTool):
     _settings: Settings = PrivateAttr()
     _id_suffix_factory: Callable[[], str] = PrivateAttr()
     _last_event: ClaimToolEvent | None = PrivateAttr(default=None)
+    _last_output: SubmitClaimOutput | None = PrivateAttr(default=None)
 
     def __init__(
         self,
@@ -66,6 +67,7 @@ class SubmitClaimTool(BaseTool):
         """Clear the latest event before a new Flow request."""
 
         self._last_event = None
+        self._last_output = None
 
     def _run(
         self,
@@ -74,6 +76,9 @@ class SubmitClaimTool(BaseTool):
         amount: float,
         description: str,
     ) -> SubmitClaimOutput:
+        if self._last_output is not None:
+            return self._last_output
+
         try:
             submission = ClaimSubmission(
                 policy_number=policy_number,
@@ -98,12 +103,14 @@ class SubmitClaimTool(BaseTool):
             return self._failure("The claim submission failed safely.")
 
         self._record_event("success", "Claim submitted successfully.")
-        return SubmitClaimOutput(
+        output = SubmitClaimOutput(
             status="success",
             claim_id=result.claim.claim_id,
             claim_status=result.claim.status,
             message="Claim submitted successfully.",
         )
+        self._last_output = output
+        return output
 
     def _get_persistence(self) -> AtomicClaimsPersistence:
         if self._persistence is None:

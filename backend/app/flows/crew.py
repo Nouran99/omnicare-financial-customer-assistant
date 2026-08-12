@@ -121,7 +121,11 @@ class OmniCareSupportAgent:
     ) -> None:
         self.settings = settings or get_settings()
         self.provider = provider or DeepSeekProvider(self.settings)
-        self.tools = [SearchPolicyTool(), GetClaimStatusTool(), SubmitClaimTool()]
+        self.tools = [
+            SearchPolicyTool(),
+            GetClaimStatusTool(settings=self.settings),
+            SubmitClaimTool(settings=self.settings),
+        ]
         self.llm = ProviderBackedCrewLLM(self.provider, self.settings)
         self.agent = Agent(
             role=self.settings.crew_agent_role,

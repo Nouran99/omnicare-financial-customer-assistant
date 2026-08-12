@@ -8,8 +8,8 @@ from typing import Any
 from crewai.tools import BaseTool
 from pydantic import BaseModel, PrivateAttr
 
-from ..core.config import get_settings
 from ..core.logging import log_tool_event
+from ..core.config import Settings, get_settings
 from ..models.claims import (
     ClaimStatusFound,
     ClaimStatusLookupRequest,
@@ -38,16 +38,19 @@ class GetClaimStatusTool(BaseTool):
     result_schema: type[BaseModel] = GetClaimStatusOutput
 
     _repository: ClaimsRepository | None = PrivateAttr(default=None)
+    _settings: Settings = PrivateAttr()
     _last_event: ClaimToolEvent | None = PrivateAttr(default=None)
 
     def __init__(
         self,
         *,
         repository: ClaimsRepository | None = None,
+        settings: Settings | None = None,
         **data: Any,
     ) -> None:
         super().__init__(**data)
         self._repository = repository
+        self._settings = settings or get_settings()
 
     @property
     def last_tool_event(self) -> ClaimToolEvent | None:
@@ -88,7 +91,7 @@ class GetClaimStatusTool(BaseTool):
 
     def _get_repository(self) -> ClaimsRepository:
         if self._repository is None:
-            self._repository = ClaimsRepository(get_settings().claims_file_path)
+            self._repository = ClaimsRepository(self._settings.claims_file_path)
         return self._repository
 
     def _failure(self, message: str) -> GetClaimStatusOutput:

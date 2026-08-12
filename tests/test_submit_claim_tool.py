@@ -72,6 +72,36 @@ def test_valid_submission_appends_one_record_and_returns_confirmation_id(tmp_pat
     assert tool.last_tool_event.status == "success"
 
 
+def test_repeated_successful_calls_are_idempotent_until_observation_reset(tmp_path: Path) -> None:
+    target = tmp_path / "claims.json"
+    tool = build_tool(target, suffixes=["ABCDEF12", "ABCDEF13"])
+
+    first = tool.run(**submission_payload())
+    repeated = tool.run(
+        policy_number="POL-SECOND",
+        claim_type="Personal Property",
+        amount=99,
+        description="A second request in the same Crew execution.",
+    )
+
+    records = json.loads(target.read_text(encoding="utf-8"))
+    assert first.status == "success"
+    assert repeated == first
+    assert len(records) == 1
+
+    tool.reset_observation()
+    after_reset = tool.run(
+        policy_number="POL-SECOND",
+        claim_type="Personal Property",
+        amount=99,
+        description="A second request after the Flow reset.",
+    )
+    records_after_reset = json.loads(target.read_text(encoding="utf-8"))
+    assert after_reset.status == "success"
+    assert after_reset.claim_id != first.claim_id
+    assert len(records_after_reset) == 2
+
+
 def test_invalid_missing_field_or_amount_does_not_mutate_fixture(tmp_path: Path) -> None:
     target = tmp_path / "claims.json"
     tool = build_tool(target)
