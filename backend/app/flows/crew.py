@@ -56,9 +56,26 @@ class ProviderBackedCrewLLM(BaseLLM):
         )
         if completion.parsed is not None:
             return completion.parsed
+        if completion.tool_calls:
+            return [
+                {
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_call.name,
+                        "arguments": tool_call.arguments,
+                    },
+                }
+                for tool_call in completion.tool_calls
+            ]
         if completion.content is None:
             raise ProviderError
         return completion.content
+
+    def supports_function_calling(self) -> bool:
+        """Tell CrewAI to use its native tool execution loop."""
+
+        return True
 
     @staticmethod
     def _normalize_messages(messages: str | list[Any]) -> list[ProviderMessage]:
@@ -68,12 +85,24 @@ class ProviderBackedCrewLLM(BaseLLM):
         for message in messages:
             role = getattr(message, "role", None)
             content = getattr(message, "content", None)
+            tool_calls = getattr(message, "tool_calls", None)
             if isinstance(message, Mapping):
                 role = message.get("role")
                 content = message.get("content")
+                tool_calls = message.get("tool_calls")
             if role not in {"system", "user", "assistant", "tool"}:
                 raise ProviderError
-            if not isinstance(content, str):
+            if content is None and role == "assistant" and tool_calls:
+                names = [
+                    str(call.get("function", {}).get("name", "tool"))
+                    for call in tool_calls
+                    if isinstance(call, Mapping)
+                ]
+                content = "Tool calls requested: " + ", ".join(names or ["tool"])
+            elif content is not None and role == "tool":
+                role = "user"
+                content = f"Trusted tool result: {content}"
+            if not isinstance(content, str) or not content.strip():
                 raise ProviderError
             normalized.append(ProviderMessage(role=role, content=content))
         if not normalized:
