@@ -4,36 +4,41 @@ from __future__ import annotations
 
 import logging
 import time
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from .config import get_settings
 from .logging import log_event
 
 logger = logging.getLogger("omnicare.api")
 REQUEST_ID_HEADER = "X-Request-ID"
 
 
-def _valid_request_id(value: str | None) -> str | None:
-    """Accept only bounded UUID request IDs supplied by a client."""
+def _valid_request_id(value: str | None, *, max_length: int) -> str | None:
+    """Accept bounded, printable request IDs supplied by a client."""
 
-    if not value or len(value) > 64:
+    if not value:
         return None
-    try:
-        return str(UUID(value))
-    except ValueError:
+    normalized = value.strip()
+    if not normalized or len(normalized) > max_length:
         return None
+    if any(ord(character) < 32 or ord(character) == 127 for character in normalized):
+        return None
+    return normalized
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """Attach a request ID and log metadata without recording request content."""
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        request_id = _valid_request_id(request.headers.get(REQUEST_ID_HEADER)) or str(
-            uuid4()
-        )
+        runtime_settings = getattr(request.app.state, "settings", None) or get_settings()
+        request_id = _valid_request_id(
+            request.headers.get(REQUEST_ID_HEADER),
+            max_length=runtime_settings.request_id_max_length,
+        ) or str(uuid4())
         request.state.request_id = request_id
         started_at = time.perf_counter()
         log_event(
