@@ -13,6 +13,7 @@ import numpy as np
 from chromadb.api.types import EmbeddingFunction
 
 from ..core.config import get_settings
+from ..core.paths import resolve_configured_path
 from ..models.policy import PolicyChunk
 
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
@@ -109,7 +110,9 @@ class ChromaPolicyVectorStore:
         embedding_function: LocalHashEmbeddingFunction | None = None,
     ) -> None:
         settings = get_settings()
-        self._index_path = Path(index_path or settings.policy_index_path)
+        self._index_path = resolve_configured_path(
+            index_path or settings.policy_index_path
+        )
         self._collection_name = collection_name or settings.policy_collection_name
         self._embedding_function = embedding_function or LocalHashEmbeddingFunction()
         try:

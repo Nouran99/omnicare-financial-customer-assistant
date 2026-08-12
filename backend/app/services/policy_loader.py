@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ..core.paths import resolve_configured_path
 from ..models.policy import PolicyChunk
 
 _SECTION_PATTERN = re.compile(
@@ -35,7 +36,7 @@ class PolicyDocumentLoader:
     """Create one typed chunk per `## Section N: Title` heading."""
 
     def load_file(self, path: str | Path) -> list[PolicyChunk]:
-        document_path = Path(path)
+        document_path = resolve_configured_path(path)
         try:
             content = document_path.read_text(encoding="utf-8")
         except FileNotFoundError as exc:

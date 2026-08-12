@@ -41,12 +41,12 @@ def _has_successful_submit_event(draft: AssistantDraft) -> bool:
     )
 
 
-def validate_assistant_draft(
+def validate_draft_structure(
     draft: AssistantDraft,
     *,
     settings: Settings | None = None,
 ) -> AssistantDraft:
-    """Validate deterministic citation, safety, and claim-success rules."""
+    """Validate only rules that are safe before CrewAI executes tools."""
 
     resolved_settings = settings or get_settings()
     if not draft.safety_result.allowed and draft.tool_calls:
@@ -55,15 +55,28 @@ def validate_assistant_draft(
     if _contains_any(draft.response, resolved_settings.safety_system_prompt_patterns):
         raise DraftValidationError("hidden_instruction_disclosure")
 
-    if _contains_any(draft.response, resolved_settings.draft_coverage_assertion_patterns):
-        if not draft.sources:
+    return draft
+
+
+def validate_assistant_draft(
+    draft: AssistantDraft,
+    *,
+    settings: Settings | None = None,
+) -> AssistantDraft:
+    """Validate deterministic citation, safety, and claim-success rules."""
+
+    resolved_settings = settings or get_settings()
+    validated = validate_draft_structure(draft, settings=resolved_settings)
+
+    if _contains_any(validated.response, resolved_settings.draft_coverage_assertion_patterns):
+        if not validated.sources:
             raise DraftValidationError("coverage_assertion_requires_source")
 
-    if _contains_any(draft.response, resolved_settings.draft_claim_success_patterns):
-        if not _has_successful_submit_event(draft):
+    if _contains_any(validated.response, resolved_settings.draft_claim_success_patterns):
+        if not _has_successful_submit_event(validated):
             raise DraftValidationError("false_claim_success")
 
-    return draft
+    return validated
 
 
 def parse_task_output(
@@ -74,6 +87,16 @@ def parse_task_output(
     raw: Any = task_output
     if isinstance(task_output, TaskOutput):
         raw = task_output.pydantic or task_output.json_dict or task_output.raw
+    else:
+        crew_pydantic = getattr(task_output, "pydantic", None)
+        crew_json_dict = getattr(task_output, "json_dict", None)
+        crew_raw = getattr(task_output, "raw", None)
+        if crew_pydantic is not None:
+            raw = crew_pydantic
+        elif crew_json_dict is not None:
+            raw = crew_json_dict
+        elif crew_raw is not None:
+            raw = crew_raw
     try:
         return raw if isinstance(raw, AssistantDraft) else AssistantDraft.model_validate(raw)
     except Exception as exc:
@@ -99,6 +122,7 @@ def support_request_guardrail(
     """CrewAI guardrail callback returning only typed output or a safe code."""
 
     try:
-        return True, validate_task_output(task_output)
+        draft = parse_task_output(task_output)
+        return True, validate_draft_structure(draft)
     except DraftValidationError as exc:
         return False, f"draft_validation_failed:{exc.code}"

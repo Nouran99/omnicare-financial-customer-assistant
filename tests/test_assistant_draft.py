@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from pydantic import ValidationError
 
@@ -14,6 +16,7 @@ from app.models.api import ToolCallSummary
 from app.providers.deepseek import ProviderCompletion, ProviderMessage
 from app.services.draft_validator import (
     DraftValidationError,
+    parse_task_output,
     support_request_guardrail,
     validate_assistant_draft,
 )
@@ -147,17 +150,33 @@ def test_hidden_instruction_disclosure_and_malformed_fields_are_rejected() -> No
         )
 
 
+def test_parse_task_output_accepts_crewai_crew_output_shape() -> None:
+    draft = AssistantDraft(
+        response="The policy response is grounded in the retrieved evidence.",
+        safety_result=allowed_result(),
+    )
+    crew_output = SimpleNamespace(
+        pydantic=draft,
+        json_dict=None,
+        raw=draft.model_dump_json(),
+    )
+
+    assert parse_task_output(crew_output) == draft
+
+
 def test_guardrail_returns_safe_failure_code_and_task_uses_pydantic_output() -> None:
     failed, message = support_request_guardrail(
         {
-            "response": "The policy covers water damage.",
+            "response": "I cannot help with that request.",
             "sources": [],
-            "tool_calls": [],
-            "safety_result": allowed_result().model_dump(),
+            "tool_calls": [
+                {"name": "search_policy", "status": "success"},
+            ],
+            "safety_result": blocked_result().model_dump(),
         }
     )
     assert failed is False
-    assert message == "draft_validation_failed:coverage_assertion_requires_source"
+    assert message == "draft_validation_failed:blocked_draft_contains_tool_calls"
 
     settings = build_settings()
     agent = OmniCareSupportAgent(provider=FakeProvider(), settings=settings).build()
@@ -165,5 +184,6 @@ def test_guardrail_returns_safe_failure_code_and_task_uses_pydantic_output() -> 
 
     assert task.output_pydantic is AssistantDraft
     assert task.guardrail is not None
-    assert task.description == settings.crew_task_description
+    assert task.description.startswith(settings.crew_task_description)
+    assert settings.crew_task_request_context_template in task.description
     assert task.expected_output == settings.crew_task_expected_output

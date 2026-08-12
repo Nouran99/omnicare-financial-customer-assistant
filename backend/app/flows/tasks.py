@@ -18,7 +18,10 @@ def support_request_task(
 
     resolved_settings = settings or get_settings()
     return Task(
-        description=resolved_settings.crew_task_description,
+        description=(
+            f"{resolved_settings.crew_task_description}\n\n"
+            f"{resolved_settings.crew_task_request_context_template}"
+        ),
         expected_output=resolved_settings.crew_task_expected_output,
         agent=agent,
         output_pydantic=AssistantDraft,
