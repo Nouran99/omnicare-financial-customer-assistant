@@ -15,6 +15,7 @@ The repository is being implemented incrementally from the approved OmniCare use
 | Policy questions | FastAPI service with CrewAI orchestration and local policy retrieval. |
 | Claim status | Read-only lookup against the supplied mock claims fixture. |
 | Claim submission | Pydantic-validated atomic append to the mock claims fixture. |
+| API foundation | Versioned FastAPI entry point, health check, strict chat models, safe errors, CORS, request IDs, and sanitized logs. |
 
 ## Repository Structure
 
@@ -71,7 +72,13 @@ python3 -m venv .venv
 .venv/bin/pytest -q
 ```
 
-The backend package is imported from the repository root through the checked-in `pytest.ini`. Future API stories will document the Uvicorn command once the FastAPI application entry point exists.
+The backend package is imported from the repository root through the checked-in `pytest.ini`. Run the current FastAPI foundation with:
+
+```bash
+.venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000
+```
+
+The API contract, validation limits, safe error mapping, CORS behavior, request IDs, and structured logging are documented in [`docs/api-contract.md`](docs/api-contract.md).
 
 ## Configuration
 
