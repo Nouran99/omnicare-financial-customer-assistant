@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     crew_agent_allow_delegation: bool = False
     crew_agent_allow_code_execution: bool = False
     crew_process: str = "sequential"
+    draft_coverage_assertion_patterns: str = "coverage,covers,covered,eligible,will pay,does not cover"
+    draft_claim_success_patterns: str = "claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number"
+    crew_task_description: str = "Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. Follow the deterministic safety result and do not invent coverage or claim outcomes."
+    crew_task_expected_output: str = "Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event."
     request_id_max_length: int = 64
     policy_section_id_max_length: int = 64
     policy_section_title_max_length: int = 256

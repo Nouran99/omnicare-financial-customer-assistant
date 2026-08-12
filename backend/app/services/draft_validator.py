@@ -1,0 +1,96 @@
+"""Deterministic validation for structured Crew drafts."""
+
+from collections.abc import Mapping
+from typing import Any, Tuple
+
+from crewai.tasks.task_output import TaskOutput
+
+from ..core.config import Settings, get_settings
+from ..models.draft import AssistantDraft
+
+
+class DraftValidationError(ValueError):
+    """Safe validation failure with a bounded machine-readable code."""
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+def _normalized_patterns(configured: str) -> list[str]:
+    return [
+        " ".join(pattern.casefold().split())
+        for pattern in configured.split(",")
+        if " ".join(pattern.casefold().split())
+    ]
+
+
+def _normalized_text(value: str) -> str:
+    return " ".join(value.casefold().split())
+
+
+def _contains_any(value: str, configured: str) -> bool:
+    normalized = _normalized_text(value)
+    return any(pattern in normalized for pattern in _normalized_patterns(configured))
+
+
+def _has_successful_submit_event(draft: AssistantDraft) -> bool:
+    return any(
+        event.name == "submit_claim" and event.status == "success"
+        for event in draft.tool_calls
+    )
+
+
+def validate_assistant_draft(
+    draft: AssistantDraft,
+    *,
+    settings: Settings | None = None,
+) -> AssistantDraft:
+    """Validate deterministic citation, safety, and claim-success rules."""
+
+    resolved_settings = settings or get_settings()
+    if not draft.safety_result.allowed and draft.tool_calls:
+        raise DraftValidationError("blocked_draft_contains_tool_calls")
+
+    if _contains_any(draft.response, resolved_settings.safety_system_prompt_patterns):
+        raise DraftValidationError("hidden_instruction_disclosure")
+
+    if _contains_any(draft.response, resolved_settings.draft_coverage_assertion_patterns):
+        if not draft.sources:
+            raise DraftValidationError("coverage_assertion_requires_source")
+
+    if _contains_any(draft.response, resolved_settings.draft_claim_success_patterns):
+        if not _has_successful_submit_event(draft):
+            raise DraftValidationError("false_claim_success")
+
+    return draft
+
+
+def validate_task_output(
+    task_output: TaskOutput | AssistantDraft | Mapping[str, Any] | str,
+    *,
+    settings: Settings | None = None,
+) -> AssistantDraft:
+    """Parse and validate a CrewAI task output without exposing raw output details."""
+
+    raw: Any = task_output
+    if isinstance(task_output, TaskOutput):
+        raw = task_output.pydantic or task_output.json_dict or task_output.raw
+    try:
+        draft = raw if isinstance(raw, AssistantDraft) else AssistantDraft.model_validate(raw)
+        return validate_assistant_draft(draft, settings=settings)
+    except DraftValidationError:
+        raise
+    except Exception as exc:
+        raise DraftValidationError("malformed_draft") from exc
+
+
+def support_request_guardrail(
+    task_output: TaskOutput | AssistantDraft | Mapping[str, Any] | str,
+) -> Tuple[bool, Any]:
+    """CrewAI guardrail callback returning only typed output or a safe code."""
+
+    try:
+        return True, validate_task_output(task_output)
+    except DraftValidationError as exc:
+        return False, f"draft_validation_failed:{exc.code}"

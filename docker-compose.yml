@@ -62,6 +62,10 @@ services:
       CREW_AGENT_ALLOW_DELEGATION: ${CREW_AGENT_ALLOW_DELEGATION:-false}
       CREW_AGENT_ALLOW_CODE_EXECUTION: ${CREW_AGENT_ALLOW_CODE_EXECUTION:-false}
       CREW_PROCESS: ${CREW_PROCESS:-sequential}
+      DRAFT_COVERAGE_ASSERTION_PATTERNS: ${DRAFT_COVERAGE_ASSERTION_PATTERNS:-coverage,covers,covered,eligible,will pay,does not cover}
+      DRAFT_CLAIM_SUCCESS_PATTERNS: ${DRAFT_CLAIM_SUCCESS_PATTERNS:-claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number}
+      CREW_TASK_DESCRIPTION: ${CREW_TASK_DESCRIPTION:-Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. Follow the deterministic safety result and do not invent coverage or claim outcomes.}
+      CREW_TASK_EXPECTED_OUTPUT: ${CREW_TASK_EXPECTED_OUTPUT:-Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event.}
     volumes:
       - ./backend:/workspace/backend
       - ./data:/workspace/data
