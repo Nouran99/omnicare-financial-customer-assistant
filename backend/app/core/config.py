@@ -2,16 +2,16 @@
 
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Runtime configuration for the API process.
 
-    Provider and data-path settings are declared here so later stories can reuse the
-    same configuration boundary without creating clients or reading files at import
-    time. Secrets are represented as ``SecretStr`` and are never logged by this layer.
+    Operational values are centralized here and can be overridden through environment
+    variables. The defaults keep local tests and development runnable without a secret;
+    deployments should provide their explicit values through the environment.
     """
 
     app_name: str = "OmniCare Financial Customer Assistant"
@@ -25,6 +25,26 @@ class Settings(BaseSettings):
     policy_file_path: str = "../data/sample_policy.md"
     claims_file_path: str = "../data/mock_claims.json"
 
+    user_id_max_length: int = 128
+    message_max_length: int = 8_000
+    source_max_length: int = 512
+    max_sources: int = 20
+    tool_name_max_length: int = 64
+    tool_status_max_length: int = 32
+    tool_arguments_max_length: int = 1_000
+    tool_result_max_length: int = 2_000
+    max_tool_calls: int = 20
+
+    claim_id_max_length: int = 64
+    policy_number_max_length: int = 128
+    claim_type_max_length: int = 128
+    claim_status_max_length: int = 64
+    claim_description_max_length: int = 4_000
+    claim_amount_min: float = 0.0
+    claim_amount_decimal_places: int = 2
+    initial_claim_status: str = "Submitted"
+    request_id_max_length: int = 64
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -33,9 +53,54 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @field_validator(
+        "user_id_max_length",
+        "message_max_length",
+        "source_max_length",
+        "max_sources",
+        "tool_name_max_length",
+        "tool_status_max_length",
+        "tool_arguments_max_length",
+        "tool_result_max_length",
+        "max_tool_calls",
+        "claim_id_max_length",
+        "policy_number_max_length",
+        "claim_type_max_length",
+        "claim_status_max_length",
+        "claim_description_max_length",
+        "request_id_max_length",
+    )
+    @classmethod
+    def validate_positive_limits(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("configured length and collection limits must be positive")
+        return value
+
+    @field_validator("claim_amount_min")
+    @classmethod
+    def validate_minimum_amount(cls, value: float) -> float:
+        if value < 0:
+            raise ValueError("claim_amount_min must not be negative")
+        return value
+
+    @field_validator("claim_amount_decimal_places")
+    @classmethod
+    def validate_decimal_places(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("claim_amount_decimal_places must not be negative")
+        return value
+
+    @field_validator("initial_claim_status")
+    @classmethod
+    def validate_initial_status(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("initial_claim_status must not be blank")
+        return normalized
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return the process-wide settings object without performing I/O beyond env loading."""
+    """Return the process-wide settings object without provider or file I/O."""
 
     return Settings()

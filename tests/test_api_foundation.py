@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.errors import ProviderError, ToolError
 from app.core.logging import (
     JsonLogFormatter,
@@ -53,12 +53,13 @@ def test_health_is_deterministic_and_provider_independent() -> None:
 def test_chat_request_rejects_blank_oversized_and_extra_fields() -> None:
     valid = ChatRequest(user_id="user-123", message="Is water damage covered?")
     assert valid.user_id == "user-123"
+    settings = get_settings()
 
     for payload in (
         {"user_id": " ", "message": "hello"},
         {"user_id": "user", "message": " "},
-        {"user_id": "x" * 129, "message": "hello"},
-        {"user_id": "user", "message": "x" * 8_001},
+        {"user_id": "x" * (settings.user_id_max_length + 1), "message": "hello"},
+        {"user_id": "user", "message": "x" * (settings.message_max_length + 1)},
         {"user_id": "user", "message": "hello", "unexpected": True},
     ):
         try:

@@ -1,16 +1,10 @@
 """Public API models with strict validation and safe serialization boundaries."""
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-MAX_USER_ID_LENGTH = 128
-MAX_MESSAGE_LENGTH = 8_000
-MAX_TOOL_NAME_LENGTH = 64
-MAX_TOOL_STATUS_LENGTH = 32
-MAX_TOOL_ARGUMENTS_LENGTH = 1_000
-MAX_TOOL_RESULT_LENGTH = 2_000
+from ..core.config import get_settings
 
 
 def _require_trimmed_text(value: str, *, field_name: str, max_length: int) -> str:
@@ -37,21 +31,25 @@ class ChatRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    user_id: str = Field(..., min_length=1, max_length=MAX_USER_ID_LENGTH)
-    message: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
+    user_id: str
+    message: str
 
     @field_validator("user_id")
     @classmethod
     def validate_user_id(cls, value: str) -> str:
         return _require_trimmed_text(
-            value, field_name="user_id", max_length=MAX_USER_ID_LENGTH
+            value,
+            field_name="user_id",
+            max_length=get_settings().user_id_max_length,
         )
 
     @field_validator("message")
     @classmethod
     def validate_message(cls, value: str) -> str:
         return _require_trimmed_text(
-            value, field_name="message", max_length=MAX_MESSAGE_LENGTH
+            value,
+            field_name="message",
+            max_length=get_settings().message_max_length,
         )
 
 
@@ -65,38 +63,56 @@ class ToolCallSummary(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., min_length=1, max_length=MAX_TOOL_NAME_LENGTH)
-    status: str = Field(..., min_length=1, max_length=MAX_TOOL_STATUS_LENGTH)
-    arguments: str | None = Field(default=None, max_length=MAX_TOOL_ARGUMENTS_LENGTH)
-    result_summary: str | None = Field(default=None, max_length=MAX_TOOL_RESULT_LENGTH)
+    name: str
+    status: str
+    arguments: str | None = None
+    result_summary: str | None = None
 
-    @field_validator("name", "status")
+    @field_validator("name")
     @classmethod
-    def validate_short_text(cls, value: str, info: Any) -> str:
+    def validate_name(cls, value: str) -> str:
         return _require_trimmed_text(
             value,
-            field_name=info.field_name,
-            max_length=MAX_TOOL_NAME_LENGTH
-            if info.field_name == "name"
-            else MAX_TOOL_STATUS_LENGTH,
+            field_name="name",
+            max_length=get_settings().tool_name_max_length,
         )
 
-    @field_validator("arguments", "result_summary")
+    @field_validator("status")
     @classmethod
-    def validate_optional_text(cls, value: str | None, info: Any) -> str | None:
+    def validate_status(cls, value: str) -> str:
+        return _require_trimmed_text(
+            value,
+            field_name="status",
+            max_length=get_settings().tool_status_max_length,
+        )
+
+    @field_validator("arguments")
+    @classmethod
+    def validate_arguments(cls, value: str | None) -> str | None:
         if value is None:
             return None
         normalized = value.strip()
         if not normalized:
             return None
-        max_length = (
-            MAX_TOOL_ARGUMENTS_LENGTH
-            if info.field_name == "arguments"
-            else MAX_TOOL_RESULT_LENGTH
+        return _require_trimmed_text(
+            normalized,
+            field_name="arguments",
+            max_length=get_settings().tool_arguments_max_length,
         )
-        if len(normalized) > max_length:
-            raise ValueError(f"{info.field_name} must be at most {max_length} characters")
-        return normalized
+
+    @field_validator("result_summary")
+    @classmethod
+    def validate_result_summary(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        return _require_trimmed_text(
+            normalized,
+            field_name="result_summary",
+            max_length=get_settings().tool_result_max_length,
+        )
 
 
 class ChatResponse(BaseModel):
@@ -104,28 +120,45 @@ class ChatResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    response: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
-    sources: list[str] = Field(default_factory=list, max_length=20)
-    tool_calls: list[ToolCallSummary] = Field(default_factory=list, max_length=20)
+    response: str
+    sources: list[str] = Field(default_factory=list)
+    tool_calls: list[ToolCallSummary] = Field(default_factory=list)
 
     @field_validator("response")
     @classmethod
     def validate_response(cls, value: str) -> str:
         return _require_trimmed_text(
-            value, field_name="response", max_length=MAX_MESSAGE_LENGTH
+            value,
+            field_name="response",
+            max_length=get_settings().message_max_length,
         )
 
     @field_validator("sources")
     @classmethod
     def validate_sources(cls, value: list[str]) -> list[str]:
+        settings = get_settings()
+        if len(value) > settings.max_sources:
+            raise ValueError(f"sources must contain at most {settings.max_sources} items")
         normalized: list[str] = []
         for source in value:
             cleaned = _require_trimmed_text(
-                source, field_name="source", max_length=512
+                source,
+                field_name="source",
+                max_length=settings.source_max_length,
             )
             if cleaned not in normalized:
                 normalized.append(cleaned)
         return normalized
+
+    @field_validator("tool_calls")
+    @classmethod
+    def validate_tool_calls(cls, value: list[ToolCallSummary]) -> list[ToolCallSummary]:
+        max_tool_calls = get_settings().max_tool_calls
+        if len(value) > max_tool_calls:
+            raise ValueError(
+                f"tool_calls must contain at most {max_tool_calls} items"
+            )
+        return value
 
 
 class ErrorResponse(BaseModel):
