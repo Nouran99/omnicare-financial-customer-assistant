@@ -502,9 +502,68 @@ textarea:focus-visible {
 }
 
 .send-button:disabled,
-.starter-prompt:disabled {
+.starter-prompt:disabled,
+.voice-button:disabled,
+.voice-secondary-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+.voice-controls {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.95rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.voice-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.voice-button,
+.voice-secondary-button {
+  padding: 0.58rem 0.75rem;
+  border-radius: 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: background 160ms ease-out, border-color 160ms ease-out, transform 160ms ease-out;
+}
+
+.voice-button {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.voice-button:hover:not(:disabled) {
+  border-color: var(--accent-dark);
+  background: #cde5da;
+}
+
+.voice-secondary-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.voice-secondary-button:hover:not(:disabled) {
+  border-color: #a9c4b9;
+  background: #f8fbf8;
+}
+
+.voice-status,
+.voice-fallback {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.voice-fallback {
+  color: #692018;
 }
 
 @media (max-width: 800px) {
@@ -575,7 +634,9 @@ textarea:focus-visible {
     flex-direction: column;
   }
 
-  .send-button {
+  .send-button,
+  .voice-button,
+  .voice-secondary-button {
     width: 100%;
   }
 }

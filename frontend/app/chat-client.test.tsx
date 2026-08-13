@@ -69,7 +69,7 @@ describe("ChatClient", () => {
     expect((screen.getByRole("button", { name: "Sending…" }) as HTMLButtonElement).disabled).toBe(
       true,
     );
-    expect(screen.getByRole("status").textContent).toContain("OmniCare is preparing");
+    expect(screen.getByText("OmniCare is preparing a safe response…")).not.toBeNull();
     expect((screen.getByRole("textbox", { name: "Your message" }) as HTMLTextAreaElement).disabled).toBe(true);
 
     resolveFetch(successResponse());
@@ -102,9 +102,9 @@ describe("ChatClient", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("alert")));
-    expect(screen.getByRole("alert").getAttribute("tabindex")).toBe("-1");
-    expect(screen.getByRole("alert").textContent).not.toContain("private socket detail");
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById("chat-error")));
+    expect(document.getElementById("chat-error")?.getAttribute("tabindex")).toBe("-1");
+    expect(document.getElementById("chat-error")?.textContent).not.toContain("private socket detail");
   });
 
   it("shows a safe error while retaining the user message when the request fails", async () => {
@@ -116,8 +116,8 @@ describe("ChatClient", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Send message" }).closest("form")!);
 
-    await waitFor(() => expect(screen.getByRole("alert")).not.toBeNull());
-    expect(screen.getByRole("alert").textContent).toContain(
+    await waitFor(() => expect(document.getElementById("chat-error")).not.toBeNull());
+    expect(document.getElementById("chat-error")?.textContent).toContain(
       "The assistant could not be reached. Please check your connection and try again.",
     );
     expect(screen.getByRole("article", { name: "Your message" }).textContent).toContain(

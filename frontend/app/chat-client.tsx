@@ -4,6 +4,7 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { useChatState } from "../lib/use-chat-state";
 import { AssistantMessageMetadata } from "./message-metadata";
+import { VoiceControls } from "./voice-controls";
 
 const STARTER_PROMPTS = [
   {
@@ -34,11 +35,12 @@ export function ChatClient() {
     }
   }, [chat.error]);
 
-  async function submitMessage() {
-    const outcome = await chat.submit(message);
+  async function submitMessage(content = message) {
+    const outcome = await chat.submit(content);
     if (outcome.succeeded) {
       setMessage("");
     }
+    return outcome;
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -193,6 +195,7 @@ export function ChatClient() {
                 {chat.pending ? "Sending…" : "Send message"}
               </button>
             </div>
+            <VoiceControls disabled={chat.pending} onTranscript={submitMessage} />
           </form>
         </section>
       </section>

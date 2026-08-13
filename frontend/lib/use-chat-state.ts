@@ -35,6 +35,7 @@ export interface ChatState {
 export interface ChatSubmitResult {
   submitted: boolean;
   succeeded: boolean;
+  response?: ChatResponse;
 }
 
 export interface UseChatStateOptions {
@@ -109,7 +110,7 @@ export function useChatState({
           error: null,
         }));
         pendingRef.current = false;
-        return { submitted: true, succeeded: true };
+        return { submitted: true, succeeded: true, response };
       } catch (error) {
         setState((previous) => ({
           ...previous,
