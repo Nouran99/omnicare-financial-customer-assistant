@@ -1,0 +1,24 @@
+flowchart LR
+    Browser[Browser\nNext.js chat UI] --> Client[Typed sendChat client\nuseChatState]
+    Client --> Proxy[Same-origin\n/api/v1/chat proxy]
+    Proxy -->|BACKEND_ORIGIN| API[FastAPI\n/api/v1/chat]
+    API --> Boundary[X-Request-ID\nCORS + Pydantic validation]
+    Boundary --> Flow[OmniCareSupportFlow]
+    Flow --> Gate[DeterministicSafetyGate]
+    Gate -->|allowed| Crew[One bounded CrewAI\nsequential support agent]
+    Gate -->|blocked| Safe[Safe refusal]
+    Crew --> Provider[DeepSeekProvider\n30s timeout + retries]
+    Crew --> Guard[Tool allowlist\nargument validator]
+    Guard --> Policy[search_policy\nPolicyRetriever]
+    Policy --> RAG[Markdown loader\nlocal Chroma + citations]
+    RAG --> PolicyData[(data/sample_policy.md)]
+    Guard --> Status[get_claim_status\nread-only repository]
+    Status --> ClaimsData[(data/mock_claims.json)]
+    Guard --> Submit[submit_claim\natomic persistence]
+    Submit --> ClaimsData
+    Crew --> Draft[AssistantDraft\nparse + grounding validator]
+    Flow --> Sanitize[Trusted summary sanitizer\nChatResponse shaping]
+    Safe --> Sanitize
+    Draft --> Sanitize
+    Sanitize --> Proxy
+    Proxy --> Client
