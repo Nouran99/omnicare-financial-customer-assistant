@@ -17,6 +17,7 @@ from ..providers.deepseek import (
     ProviderCompletion,
     ProviderMessage,
 )
+from ..services.provider_tool_validator import ProviderToolArgumentValidator
 from ..services.tool_allowlist import ToolAllowlist
 from ..tools.get_claim_status import GetClaimStatusTool
 from ..tools.search_policy import SearchPolicyTool
@@ -28,6 +29,7 @@ class ProviderBackedCrewLLM(BaseLLM):
 
     _provider: LLMProvider = PrivateAttr()
     _tool_allowlist: ToolAllowlist = PrivateAttr()
+    _argument_validator: ProviderToolArgumentValidator = PrivateAttr()
 
     def __init__(self, provider: LLMProvider, settings: Settings) -> None:
         model = settings.deepseek_model or "configured-provider-model"
@@ -39,6 +41,7 @@ class ProviderBackedCrewLLM(BaseLLM):
         )
         self._provider = provider
         self._tool_allowlist = ToolAllowlist(settings)
+        self._argument_validator = ProviderToolArgumentValidator(settings)
 
     def call(
         self,
@@ -60,19 +63,20 @@ class ProviderBackedCrewLLM(BaseLLM):
         if completion.parsed is not None:
             return completion.parsed
         if completion.tool_calls:
+            normalized_tool_calls: list[dict[str, Any]] = []
             for tool_call in completion.tool_calls:
                 self._tool_allowlist.ensure_allowed(tool_call.name)
-            return [
-                {
-                    "id": tool_call.id,
-                    "type": "function",
-                    "function": {
-                        "name": tool_call.name,
-                        "arguments": tool_call.arguments,
-                    },
-                }
-                for tool_call in completion.tool_calls
-            ]
+                normalized_tool_calls.append(
+                    {
+                        "id": tool_call.id,
+                        "type": "function",
+                        "function": {
+                            "name": tool_call.name,
+                            "arguments": self._argument_validator.normalize(tool_call),
+                        },
+                    }
+                )
+            return normalized_tool_calls
         if completion.content is None:
             raise ProviderError
         return completion.content
