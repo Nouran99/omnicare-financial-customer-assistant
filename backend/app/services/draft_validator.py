@@ -93,9 +93,8 @@ def validate_assistant_draft(
         validated.response,
         resolved_settings.draft_insufficient_information_patterns,
     )
-    if has_coverage_assertion and not validated.sources:
-        if not (has_empty_policy_retrieval and has_explicit_limitation):
-            raise DraftValidationError("coverage_assertion_requires_source")
+    if has_coverage_assertion and not validated.sources and not has_explicit_limitation:
+        raise DraftValidationError("coverage_assertion_requires_source")
 
     if has_empty_policy_retrieval and not validated.sources and not has_explicit_limitation:
         raise DraftValidationError("insufficient_information_required")
