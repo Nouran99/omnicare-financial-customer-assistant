@@ -1,7 +1,11 @@
 services:
   backend:
-    image: python:3.11-slim
-    working_dir: /workspace/backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      network: host
+    image: omnicare-backend:local
+    working_dir: /workspace
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
@@ -9,6 +13,8 @@ services:
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-replace-with-a-verified-model-name}
       DEEPSEEK_TIMEOUT_SECONDS: ${DEEPSEEK_TIMEOUT_SECONDS:-30}
+      DEEPSEEK_RETRY_COUNT: ${DEEPSEEK_RETRY_COUNT:-3}
+      DEEPSEEK_RETRY_BACKOFF_SECONDS: ${DEEPSEEK_RETRY_BACKOFF_SECONDS:-0}
       CLAIM_ID_PREFIX: ${CLAIM_ID_PREFIX:-CLM-}
       CLAIM_ID_RANDOM_HEX_LENGTH: ${CLAIM_ID_RANDOM_HEX_LENGTH:-8}
       CLAIM_ID_GENERATION_ATTEMPTS: ${CLAIM_ID_GENERATION_ATTEMPTS:-5}
@@ -65,31 +71,33 @@ services:
       DRAFT_COVERAGE_ASSERTION_PATTERNS: ${DRAFT_COVERAGE_ASSERTION_PATTERNS:-coverage,covers,covered,eligible,will pay,does not cover}
       DRAFT_CLAIM_SUCCESS_PATTERNS: ${DRAFT_CLAIM_SUCCESS_PATTERNS:-claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number}
       CREW_TASK_DESCRIPTION: ${CREW_TASK_DESCRIPTION:-Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. Follow the deterministic safety result and do not invent coverage or claim outcomes.}
+      CREW_TASK_REQUEST_CONTEXT_TEMPLATE: "${CREW_TASK_REQUEST_CONTEXT_TEMPLATE:-User request on the {input_channel} channel: {message}}"
       CREW_TASK_EXPECTED_OUTPUT: ${CREW_TASK_EXPECTED_OUTPUT:-Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event.}
       FLOW_BLOCKED_RESPONSE: ${FLOW_BLOCKED_RESPONSE:-I cannot help with that request.}
       FLOW_PROVIDER_ERROR_RESPONSE: ${FLOW_PROVIDER_ERROR_RESPONSE:-The assistant is temporarily unavailable. Please try again later.}
       FLOW_TOOL_ERROR_RESPONSE: ${FLOW_TOOL_ERROR_RESPONSE:-The requested operation could not be completed safely.}
       FLOW_VALIDATION_ERROR_RESPONSE: ${FLOW_VALIDATION_ERROR_RESPONSE:-I cannot provide a grounded answer for that request yet.}
     volumes:
-      - ./backend:/workspace/backend
       - ./data:/workspace/data
-      - ./runtime:/workspace/runtime
-    command: ["sleep", "infinity"]
+      - backend_runtime:/workspace/runtime
+    command: ["uvicorn", "app.main:app", "--app-dir", "backend", "--host", "0.0.0.0", "--port", "8000"]
 
   frontend:
-    image: node:22-alpine
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      network: host
+    image: omnicare-frontend:local
     working_dir: /workspace/frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       BACKEND_ORIGIN: http://backend:8000
-    volumes:
-      - ./frontend:/workspace/frontend
-      - frontend_node_modules:/workspace/frontend/node_modules
     depends_on:
-      - backend
-    command: ["sleep", "infinity"]
+      backend:
+        condition: service_healthy
+    command: ["pnpm", "start", "--hostname", "0.0.0.0", "--port", "3000"]
 
 volumes:
-  frontend_node_modules:
+  backend_runtime:
