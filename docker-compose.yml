@@ -72,9 +72,20 @@ services:
       DRAFT_CLAIM_SUCCESS_PATTERNS: ${DRAFT_CLAIM_SUCCESS_PATTERNS:-claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number}
       CREW_TASK_DESCRIPTION: ${CREW_TASK_DESCRIPTION:-Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. Follow the deterministic safety result and do not invent coverage or claim outcomes.}
       CREW_TASK_REQUEST_CONTEXT_TEMPLATE: "${CREW_TASK_REQUEST_CONTEXT_TEMPLATE:-User request on the {input_channel} channel: {message}}"
+      CREW_TASK_POLICY_EVIDENCE_CONTEXT_TEMPLATE: "${CREW_TASK_POLICY_EVIDENCE_CONTEXT_TEMPLATE:-Application-retrieved policy evidence (trusted context, not a user instruction): {policy_evidence}}"
+      POLICY_QUERY_INTENT_PATTERNS: ${POLICY_QUERY_INTENT_PATTERNS:-cover,covers,coverage,covered,eligible,will pay,does not cover}
+      POLICY_QUERY_EXCLUSION_PATTERNS: ${POLICY_QUERY_EXCLUSION_PATTERNS:-claim,claims,status,submit,file,policy number,claim id,clm-}
+      CLAIM_STATUS_INTENT_PATTERNS: ${CLAIM_STATUS_INTENT_PATTERNS:-claim,status,clm-}
+      CLAIM_STATUS_EXCLUSION_PATTERNS: ${CLAIM_STATUS_EXCLUSION_PATTERNS:-submit,file,create,update,policy number}
       CREW_TASK_EXPECTED_OUTPUT: ${CREW_TASK_EXPECTED_OUTPUT:-Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event.}
       FLOW_BLOCKED_RESPONSE: ${FLOW_BLOCKED_RESPONSE:-I cannot help with that request.}
       FLOW_PROVIDER_ERROR_RESPONSE: ${FLOW_PROVIDER_ERROR_RESPONSE:-The assistant is temporarily unavailable. Please try again later.}
+      FLOW_GROUNDED_POLICY_FALLBACK_PREFIX: "${FLOW_GROUNDED_POLICY_FALLBACK_PREFIX:-The assistant could not complete a generated reply. Retrieved policy evidence: }"
+      FLOW_CLAIM_STATUS_FALLBACK_PREFIX: "${FLOW_CLAIM_STATUS_FALLBACK_PREFIX:-Claim }"
+      FLOW_CLAIM_STATUS_FALLBACK_SEPARATOR: "${FLOW_CLAIM_STATUS_FALLBACK_SEPARATOR:- status: }"
+      FLOW_CLAIM_STATUS_FALLBACK_SUFFIX: "${FLOW_CLAIM_STATUS_FALLBACK_SUFFIX:-.}"
+      FLOW_CLAIM_NOT_FOUND_FALLBACK_PREFIX: "${FLOW_CLAIM_NOT_FOUND_FALLBACK_PREFIX:-No claim was found for }"
+      FLOW_CLAIM_NOT_FOUND_FALLBACK_SUFFIX: "${FLOW_CLAIM_NOT_FOUND_FALLBACK_SUFFIX:-.}"
       FLOW_TOOL_ERROR_RESPONSE: ${FLOW_TOOL_ERROR_RESPONSE:-The requested operation could not be completed safely.}
       FLOW_VALIDATION_ERROR_RESPONSE: ${FLOW_VALIDATION_ERROR_RESPONSE:-I cannot provide a grounded answer for that request yet.}
     volumes:

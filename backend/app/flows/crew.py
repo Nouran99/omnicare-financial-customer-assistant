@@ -131,7 +131,7 @@ class OmniCareSupportAgent:
         self.settings = settings or get_settings()
         self.provider = provider or DeepSeekProvider(self.settings)
         self.tools = [
-            SearchPolicyTool(),
+            SearchPolicyTool(settings=self.settings),
             GetClaimStatusTool(settings=self.settings),
             SubmitClaimTool(settings=self.settings),
         ]

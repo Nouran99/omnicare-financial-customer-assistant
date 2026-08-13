@@ -16,6 +16,10 @@ docker compose up --build
 
 Open [http://localhost:3000](http://localhost:3000). The empty UI should show the OmniCare heading, the prototype disclaimer, the editable `User ID` field, three starter prompts, an empty assistant conversation panel, a labeled message composer, and optional voice controls. The browser text composer is the primary path and remains available if voice capabilities are absent.
 
+![Empty OmniCare chat UI](screenshots/empty-ui.webp)
+
+The screenshot above is a local verification artifact; the remaining assessment behaviors are documented with reproducible commands and deterministic automated tests below.
+
 The backend readiness check is:
 
 ```bash
@@ -118,7 +122,8 @@ pnpm lint
 pnpm build
 ```
 
-The final implementation baseline passed **171 backend tests** and **27 frontend tests**. The backend suite includes endpoint, security, provider-argument, Flow/Crew orchestration, RAG, claim persistence, and Docker configuration tests. The frontend suite includes typed API, chat-state, metadata-card, chat-screen, and optional voice-control tests.
+The final implementation baseline passed **175 backend tests** and **27 frontend tests**. The backend suite includes endpoint, security, provider-argument, Flow/Crew orchestration, deterministic policy and claim-status preflight, RAG, claim persistence, and Docker configuration tests.
+The frontend suite includes typed API, chat-state, metadata-card, chat-screen, and optional voice-control tests.
 
 ## 8. Optional browser voice behavior
 

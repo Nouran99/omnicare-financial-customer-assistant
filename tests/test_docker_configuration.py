@@ -46,6 +46,9 @@ def test_compose_builds_services_and_gates_frontend_on_backend_health() -> None:
     assert '"pnpm", "start", "--hostname", "0.0.0.0"' in compose
     assert "./data:/workspace/data" in compose
     assert "backend_runtime:/workspace/runtime" in compose
+    assert "CREW_TASK_POLICY_EVIDENCE_CONTEXT_TEMPLATE" in compose
+    assert "POLICY_QUERY_INTENT_PATTERNS" in compose
+    assert "POLICY_QUERY_EXCLUSION_PATTERNS" in compose
 
 
 def test_frontend_compose_environment_contains_only_server_side_backend_origin() -> None:

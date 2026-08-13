@@ -7,6 +7,7 @@ from typing import Any
 from crewai.tools import BaseTool
 from pydantic import BaseModel, PrivateAttr
 
+from ..core.config import Settings, get_settings
 from ..models.policy import PolicyChunk
 from ..services.policy_loader import PolicyDocumentError
 from ..services.policy_retriever import PolicyQueryError, PolicyRetriever
@@ -33,15 +34,18 @@ class SearchPolicyTool(BaseTool):
     _indexed: bool = PrivateAttr(default=False)
     _last_output: SearchPolicyOutput | None = PrivateAttr(default=None)
     _last_query: str | None = PrivateAttr(default=None)
+    _settings: Settings = PrivateAttr()
 
     def __init__(
         self,
         *,
         retriever: PolicyRetriever | None = None,
+        settings: Settings | None = None,
         **data: Any,
     ) -> None:
         super().__init__(**data)
         self._retriever = retriever
+        self._settings = settings or get_settings()
 
     @property
     def last_query(self) -> str | None:
@@ -101,11 +105,25 @@ class SearchPolicyTool(BaseTool):
 
     def _get_retriever(self) -> PolicyRetriever:
         if self._retriever is None:
-            self._retriever = PolicyRetriever(ChromaPolicyVectorStore())
+            self._retriever = PolicyRetriever(
+                ChromaPolicyVectorStore(settings=self._settings),
+                settings=self._settings,
+            )
         if not self._indexed:
             self._retriever.index_file()
             self._indexed = True
         return self._retriever
+
+    def evidence_context(self) -> str:
+        """Return bounded trusted evidence for the agent task context."""
+
+        output = self._last_output
+        if output is None or output.status != "success":
+            return "No sufficiently relevant policy evidence was found."
+        return "\n".join(
+            f"{result.citation}: {result.text}"
+            for result in output.results
+        )
 
     @staticmethod
     def _evidence_from_chunk(chunk: PolicyChunk) -> PolicyEvidenceOutput:

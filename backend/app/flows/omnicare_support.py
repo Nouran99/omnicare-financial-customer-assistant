@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any, Protocol
 
@@ -10,6 +11,7 @@ from crewai import Crew, Process
 from ..core.config import Settings, get_settings
 from ..core.errors import ProviderError
 from ..models.api import ChatResponse, ToolCallSummary
+from ..models.claims import ClaimToolEvent
 from ..models.draft import AssistantDraft
 from ..models.safety import SafetyCheckResult
 from ..providers.deepseek import DeepSeekProvider, LLMProvider
@@ -27,6 +29,7 @@ from ..services.safety_gate import DeterministicSafetyGate
 from ..tools.get_claim_status import GetClaimStatusTool
 from ..tools.search_policy import SearchPolicyTool
 from ..tools.submit_claim import SubmitClaimTool
+from ..tools.schemas import GetClaimStatusOutput, SearchPolicyOutput
 from .crew import OmniCareSupportCrew
 from .state import AssistantState, InputChannel, initialize_assistant_state
 from .tasks import support_request_task
@@ -83,18 +86,33 @@ class OmniCareSupportFlow:
             state.final_response = self.settings.flow_blocked_response
             return self._response_from_state(state)
 
+        preflight_output: SearchPolicyOutput | None = None
+        preflight_query: str | None = None
+        preflight_claim_event: ClaimToolEvent | None = None
         try:
             crew = self._get_crew()
+            policy_evidence, preflight_output, preflight_query = (
+                self._preflight_policy_if_needed(state.message)
+            )
+            preflight_claim_event = self._preflight_claim_status_if_needed(
+                state.message
+            )
             raw_output = crew.kickoff(
                 inputs={
                     "request_id": state.request_id,
                     "user_id": state.user_id,
                     "message": state.message,
                     "input_channel": state.input_channel,
+                    "policy_evidence": policy_evidence,
                 }
             )
             draft = parse_task_output(raw_output)
-            composed_draft = self._compose_with_actual_events(draft)
+            composed_draft = self._compose_with_actual_events(
+                draft,
+                preflight_output=preflight_output,
+                preflight_query=preflight_query,
+                preflight_claim_event=preflight_claim_event,
+            )
             validated_draft = validate_assistant_draft(
                 composed_draft,
                 settings=self.settings,
@@ -106,10 +124,32 @@ class OmniCareSupportFlow:
             state.final_response = self.settings.flow_tool_error_response
             return self._response_from_state(state)
         except DraftValidationError:
+            grounded_response = self._grounded_policy_fallback_response(
+                preflight_output=preflight_output,
+                preflight_query=preflight_query,
+            )
+            if grounded_response is not None:
+                return grounded_response
+            claim_status_response = self._claim_status_fallback_response(
+                preflight_claim_event
+            )
+            if claim_status_response is not None:
+                return claim_status_response
             state.error_code = "draft_validation_failed"
             state.final_response = self.settings.flow_validation_error_response
             return self._response_from_state(state)
         except ProviderError:
+            grounded_response = self._grounded_policy_fallback_response(
+                preflight_output=preflight_output,
+                preflight_query=preflight_query,
+            )
+            if grounded_response is not None:
+                return grounded_response
+            claim_status_response = self._claim_status_fallback_response(
+                preflight_claim_event
+            )
+            if claim_status_response is not None:
+                return claim_status_response
             state.error_code = "provider_error"
             state.final_response = self.settings.flow_provider_error_response
             return self._response_from_state(state)
@@ -138,7 +178,179 @@ class OmniCareSupportFlow:
         )
         return self._crew
 
-    def _compose_with_actual_events(self, draft: AssistantDraft) -> AssistantDraft:
+    def _preflight_policy_if_needed(
+        self,
+        message: str,
+    ) -> tuple[str, SearchPolicyOutput | None, str | None]:
+        """Retrieve trusted policy evidence before the agent drafts coverage answers."""
+
+        if not self._is_policy_coverage_request(message):
+            return "", None, None
+
+        policy_tool = next(
+            (
+                tool
+                for tool in self._tools
+                if isinstance(tool, SearchPolicyTool)
+            ),
+            None,
+        )
+        if policy_tool is None:
+            return "", None, None
+
+        try:
+            self._tool_allowlist.ensure_allowed(policy_tool.name)
+            output = policy_tool._run(message)
+        except Exception as exc:  # pragma: no cover - defensive tool boundary
+            raise ToolFlowError from exc
+
+        if output.status == "failure":
+            raise ToolFlowError
+        return policy_tool.evidence_context(), output, message
+
+    def _preflight_claim_status_if_needed(
+        self,
+        message: str,
+    ) -> ClaimToolEvent | None:
+        """Run the read-only claim lookup before the agent drafts a status answer."""
+
+        normalized = message.casefold()
+        has_intent = any(
+            pattern.strip().casefold() in normalized
+            for pattern in self.settings.claim_status_intent_patterns.split(",")
+            if pattern.strip()
+        )
+        has_exclusion = any(
+            pattern.strip().casefold() in normalized
+            for pattern in self.settings.claim_status_exclusion_patterns.split(",")
+            if pattern.strip()
+        )
+        if not has_intent or has_exclusion:
+            return None
+
+        claim_id_pattern = re.escape(self.settings.claim_id_prefix)
+        claim_id_pattern += rf"[A-Za-z0-9]{{1,{self.settings.claim_id_max_length}}}"
+        match = re.search(claim_id_pattern, message, flags=re.IGNORECASE)
+        if match is None:
+            return None
+
+        status_tool = next(
+            (
+                tool
+                for tool in self._tools
+                if isinstance(tool, GetClaimStatusTool)
+            ),
+            None,
+        )
+        if status_tool is None:
+            return None
+
+        claim_id = match.group(0).upper()
+        try:
+            self._tool_allowlist.ensure_allowed(status_tool.name)
+            output: GetClaimStatusOutput = status_tool._run(claim_id)
+        except Exception as exc:  # pragma: no cover - defensive tool boundary
+            raise ToolFlowError from exc
+
+        if output.status == "failure":
+            raise ToolFlowError
+        return status_tool.last_tool_event
+
+    def _grounded_policy_fallback_response(
+        self,
+        *,
+        preflight_output: SearchPolicyOutput | None,
+        preflight_query: str | None,
+    ) -> ChatResponse | None:
+        """Return trusted evidence when generation fails after successful preflight."""
+
+        if preflight_output is None or preflight_output.status != "success":
+            return None
+        try:
+            self._tool_allowlist.ensure_allowed("search_policy")
+            sources = self._deduplicate(
+                result.citation for result in preflight_output.results
+            )
+            events = [
+                sanitize_tool_event(
+                    {
+                        "name": "search_policy",
+                        "status": "success",
+                        "query": preflight_query,
+                        "result_summary": "Policy evidence returned.",
+                    },
+                    settings=self.settings,
+                )
+            ]
+            evidence = "\n".join(
+                f"{result.citation}: {result.text}"
+                for result in preflight_output.results
+            )
+            response = self.settings.flow_grounded_policy_fallback_prefix + evidence
+            return ChatResponse(
+                response=response,
+                sources=sources,
+                tool_calls=events,
+            )
+        except (ToolAllowlistError, ToolSummarySanitizationError, ValueError):
+            return None
+
+    def _claim_status_fallback_response(
+        self,
+        event: ClaimToolEvent | None,
+    ) -> ChatResponse | None:
+        """Return a bounded claim status when generation fails after lookup."""
+
+        if event is None or event.status not in {"success", "not_found"}:
+            return None
+        if not event.claim_id:
+            return None
+        try:
+            self._tool_allowlist.ensure_allowed(event.name)
+            if event.status == "success" and event.claim_status:
+                response = (
+                    self.settings.flow_claim_status_fallback_prefix
+                    + event.claim_id
+                    + self.settings.flow_claim_status_fallback_separator
+                    + event.claim_status
+                    + self.settings.flow_claim_status_fallback_suffix
+                )
+            else:
+                response = (
+                    self.settings.flow_claim_not_found_fallback_prefix
+                    + event.claim_id
+                    + self.settings.flow_claim_not_found_fallback_suffix
+                )
+            summary = sanitize_tool_event(
+                event.model_dump(),
+                settings=self.settings,
+            )
+            return ChatResponse(response=response, sources=[], tool_calls=[summary])
+        except (ToolAllowlistError, ToolSummarySanitizationError, ValueError):
+            return None
+
+    def _is_policy_coverage_request(self, message: str) -> bool:
+        normalized = message.casefold()
+        has_intent = any(
+            pattern.strip().casefold() in normalized
+            for pattern in self.settings.policy_query_intent_patterns.split(",")
+            if pattern.strip()
+        )
+        has_exclusion = any(
+            pattern.strip().casefold() in normalized
+            for pattern in self.settings.policy_query_exclusion_patterns.split(",")
+            if pattern.strip()
+        )
+        return has_intent and not has_exclusion
+
+    def _compose_with_actual_events(
+        self,
+        draft: AssistantDraft,
+        *,
+        preflight_output: SearchPolicyOutput | None = None,
+        preflight_query: str | None = None,
+        preflight_claim_event: ClaimToolEvent | None = None,
+    ) -> AssistantDraft:
         actual_events: list[ToolCallSummary] = []
         actual_sources: list[str] = []
         had_actual_observation = False
@@ -147,6 +359,14 @@ class OmniCareSupportFlow:
         for tool in self._tools:
             if hasattr(tool, "last_output"):
                 output = getattr(tool, "last_output", None)
+                query = getattr(tool, "last_query", None)
+                if (
+                    isinstance(tool, SearchPolicyTool)
+                    and preflight_output is not None
+                    and preflight_output.status == "success"
+                ):
+                    output = preflight_output
+                    query = preflight_query
                 if output is not None:
                     had_actual_observation = True
                     if output.status == "failure":
@@ -159,7 +379,7 @@ class OmniCareSupportFlow:
                                 {
                                     "name": tool.name,
                                     "status": output.status,
-                                    "query": getattr(tool, "last_query", None),
+                                    "query": query,
                                     "result_summary": output.message
                                     or "Policy evidence returned.",
                                 },
@@ -170,6 +390,11 @@ class OmniCareSupportFlow:
                         raise ToolFlowError from exc
             elif hasattr(tool, "last_tool_event"):
                 event = getattr(tool, "last_tool_event", None)
+                if (
+                    isinstance(tool, GetClaimStatusTool)
+                    and preflight_claim_event is not None
+                ):
+                    event = preflight_claim_event
                 if event is not None:
                     had_actual_observation = True
                     if event.status == "failure":

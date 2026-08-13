@@ -12,7 +12,7 @@ import chromadb
 import numpy as np
 from chromadb.api.types import EmbeddingFunction
 
-from ..core.config import get_settings
+from ..core.config import Settings, get_settings
 from ..core.paths import resolve_configured_path
 from ..models.policy import PolicyChunk
 
@@ -52,12 +52,16 @@ class LocalHashEmbeddingFunction(EmbeddingFunction[list[str]]):
     service, while tests stay deterministic and network-independent.
     """
 
-    def __init__(self, dimension: int | None = None) -> None:
-        settings = get_settings()
-        self.dimension = dimension or settings.policy_embedding_dimension
+    def __init__(
+        self,
+        dimension: int | None = None,
+        settings: Settings | None = None,
+    ) -> None:
+        resolved_settings = settings or get_settings()
+        self.dimension = dimension or resolved_settings.policy_embedding_dimension
         self.stopwords = frozenset(
             token.strip().lower()
-            for token in settings.policy_embedding_stopwords.split(",")
+            for token in resolved_settings.policy_embedding_stopwords.split(",")
             if token.strip()
         )
 
@@ -108,13 +112,16 @@ class ChromaPolicyVectorStore:
         index_path: str | Path | None = None,
         collection_name: str | None = None,
         embedding_function: LocalHashEmbeddingFunction | None = None,
+        settings: Settings | None = None,
     ) -> None:
-        settings = get_settings()
+        settings = settings or get_settings()
         self._index_path = resolve_configured_path(
             index_path or settings.policy_index_path
         )
         self._collection_name = collection_name or settings.policy_collection_name
-        self._embedding_function = embedding_function or LocalHashEmbeddingFunction()
+        self._embedding_function = embedding_function or LocalHashEmbeddingFunction(
+            settings=settings
+        )
         try:
             self._client = chromadb.PersistentClient(path=str(self._index_path))
             self._collection = self._client.get_or_create_collection(

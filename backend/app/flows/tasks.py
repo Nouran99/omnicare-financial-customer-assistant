@@ -20,7 +20,8 @@ def support_request_task(
     return Task(
         description=(
             f"{resolved_settings.crew_task_description}\n\n"
-            f"{resolved_settings.crew_task_request_context_template}"
+            f"{resolved_settings.crew_task_request_context_template}\n\n"
+            f"{resolved_settings.crew_task_policy_evidence_context_template}"
         ),
         expected_output=resolved_settings.crew_task_expected_output,
         agent=agent,

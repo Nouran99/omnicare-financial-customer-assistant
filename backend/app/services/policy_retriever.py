@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..core.config import get_settings
+from ..core.config import Settings, get_settings
 from ..models.policy import PolicyChunk
 from .policy_loader import PolicyDocumentLoader
 from .policy_store import PolicySearchResult, PolicyVectorStore
@@ -33,15 +33,19 @@ class PolicyRetrieval:
 class PolicyRetriever:
     """Normalize queries, apply thresholds, and preserve trusted chunk metadata."""
 
-    def __init__(self, store: PolicyVectorStore) -> None:
+    def __init__(
+        self,
+        store: PolicyVectorStore,
+        settings: Settings | None = None,
+    ) -> None:
         self._store = store
-        self._settings = get_settings()
+        self._settings = settings or get_settings()
 
     def index_file(self, path: str | Path | None = None) -> list[PolicyChunk]:
         """Load and rebuild the local index from the configured policy file."""
 
         document_path = path or self._settings.policy_file_path
-        chunks = PolicyDocumentLoader().load_file(document_path)
+        chunks = PolicyDocumentLoader(settings=self._settings).load_file(document_path)
         self._store.reset_or_rebuild(chunks)
         return chunks
 
@@ -73,11 +77,10 @@ class PolicyRetriever:
         ]
         return PolicyRetrieval(query=normalized, chunks=accepted)
 
-    @staticmethod
-    def _normalize_query(query: str) -> str:
+    def _normalize_query(self, query: str) -> str:
         if not isinstance(query, str):
             raise PolicyQueryError("query must be text")
         normalized = _WHITESPACE.sub(" ", query).strip()
-        if len(normalized) > get_settings().policy_query_max_length:
+        if len(normalized) > self._settings.policy_query_max_length:
             raise PolicyQueryError("query exceeds the configured length")
         return normalized

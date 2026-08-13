@@ -64,6 +64,8 @@ playwright-report/
 test-results/
 coverage/
 screenshots/
+!docs/screenshots/
+!docs/screenshots/*.webp
 
 # Docker and tooling
 .docker/

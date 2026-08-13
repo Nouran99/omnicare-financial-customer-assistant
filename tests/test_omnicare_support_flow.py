@@ -9,9 +9,14 @@ from app.core.errors import ProviderError
 from app.flows.omnicare_support import OmniCareSupportFlow
 from app.models.api import ToolCallSummary
 from app.models.draft import AssistantDraft
+from app.models.policy import PolicyChunk
 from app.models.safety import SafetyCheckResult
 from app.models.claims import ClaimToolEvent
 from app.providers.deepseek import ProviderCompletion, ProviderMessage
+from app.services.policy_retriever import PolicyRetrieval
+from app.services.policy_store import PolicySearchResult
+from app.tools.get_claim_status import GetClaimStatusTool
+from app.tools.search_policy import SearchPolicyTool
 from app.tools.schemas import PolicyEvidenceOutput, SearchPolicyOutput
 
 
@@ -28,6 +33,24 @@ class FakeSearchTool:
 
     def reset_observation(self) -> None:
         self.last_output = None
+
+
+class FakePolicyRetriever:
+    def index_file(self) -> list[PolicyChunk]:
+        return []
+
+    def search(self, query: str) -> PolicyRetrieval:
+        chunk = PolicyChunk(
+            section_id="section-1",
+            section_title="Home Water Damage Coverage",
+            text="Sudden pipe bursts are covered.",
+            source_file="sample_policy.md",
+            citation="sample_policy.md — Section 1: Home Water Damage Coverage",
+        )
+        return PolicyRetrieval(
+            query=query,
+            chunks=[PolicySearchResult(chunk=chunk, relevance=1.0)],
+        )
 
 
 class FakeClaimTool:
@@ -72,6 +95,12 @@ def build_settings() -> Settings:
         draft_claim_success_patterns="claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number",
         flow_blocked_response="Blocked safely.",
         flow_provider_error_response="Provider failed safely.",
+        flow_grounded_policy_fallback_prefix="Grounded policy evidence: ",
+        flow_claim_status_fallback_prefix="Fallback status ",
+        flow_claim_status_fallback_separator=": ",
+        flow_claim_status_fallback_suffix=".",
+        flow_claim_not_found_fallback_prefix="Fallback not found ",
+        flow_claim_not_found_fallback_suffix=".",
         flow_tool_error_response="Tool failed safely.",
         flow_validation_error_response="Validation failed safely.",
     )
@@ -106,6 +135,55 @@ def test_blocked_input_stops_before_crew_or_tools() -> None:
     assert response.tool_calls == []
     assert crew.calls == 0
     assert search_tool.last_output is None
+
+
+def test_policy_coverage_preflight_guarantees_trusted_context_before_drafting() -> None:
+    policy_tool = SearchPolicyTool(retriever=FakePolicyRetriever())
+    crew = FakeCrew(
+        AssistantDraft(
+            response="The policy covers sudden pipe bursts.",
+            safety_result=allowed(),
+        )
+    )
+    flow = OmniCareSupportFlow(
+        crew=crew,
+        tools=[policy_tool],
+        settings=build_settings(),
+    )
+
+    response = flow.run(
+        user_id="user-1",
+        message="Does my policy cover sudden pipe bursts?",
+    )
+
+    assert crew.inputs is not None
+    assert "sample_policy.md — Section 1: Home Water Damage Coverage" in crew.inputs["policy_evidence"]
+    assert response.sources == [
+        "sample_policy.md — Section 1: Home Water Damage Coverage"
+    ]
+    assert [event.name for event in response.tool_calls] == ["search_policy"]
+    assert response.response == "The policy covers sudden pipe bursts."
+
+
+def test_policy_preflight_preserves_trusted_evidence_on_provider_failure() -> None:
+    policy_tool = SearchPolicyTool(retriever=FakePolicyRetriever())
+    flow = OmniCareSupportFlow(
+        crew=FakeCrew(error=ProviderError()),
+        tools=[policy_tool],
+        settings=build_settings(),
+    )
+
+    response = flow.run(
+        user_id="user-1",
+        message="Does my policy cover sudden pipe bursts?",
+    )
+
+    assert response.response.startswith("Grounded policy evidence:")
+    assert response.sources == [
+        "sample_policy.md — Section 1: Home Water Damage Coverage"
+    ]
+    assert [event.name for event in response.tool_calls] == ["search_policy"]
+    assert response.tool_calls[0].status == "success"
 
 
 def test_allowed_policy_answer_collects_trusted_sources_and_sanitized_event() -> None:
@@ -145,6 +223,51 @@ def test_allowed_policy_answer_collects_trusted_sources_and_sanitized_event() ->
     ]
     assert [event.name for event in response.tool_calls] == ["search_policy"]
     assert response.tool_calls[0].arguments is None
+
+
+def test_claim_status_preflight_preserves_status_on_provider_failure() -> None:
+    status_tool = GetClaimStatusTool()
+    flow = OmniCareSupportFlow(
+        crew=FakeCrew(error=ProviderError()),
+        tools=[status_tool],
+        settings=build_settings(),
+    )
+
+    response = flow.run(
+        user_id="user-1",
+        message="What is the status of claim CLM-9014?",
+    )
+
+    assert response.response == "Fallback status CLM-9014: Under Review."
+    assert response.sources == []
+    assert [event.name for event in response.tool_calls] == ["get_claim_status"]
+    assert response.tool_calls[0].status == "success"
+
+
+def test_claim_status_preflight_guarantees_read_only_lookup_event() -> None:
+    status_tool = GetClaimStatusTool()
+    crew = FakeCrew(
+        AssistantDraft(
+            response="Your claim is under review.",
+            safety_result=allowed(),
+        )
+    )
+    flow = OmniCareSupportFlow(
+        crew=crew,
+        tools=[status_tool],
+        settings=build_settings(),
+    )
+
+    response = flow.run(
+        user_id="user-1",
+        message="What is the status of claim CLM-9014?",
+    )
+
+    assert response.response == "Your claim is under review."
+    assert response.sources == []
+    assert [event.name for event in response.tool_calls] == ["get_claim_status"]
+    assert response.tool_calls[0].status == "success"
+    assert response.tool_calls[0].arguments == "CLM-9014"
 
 
 def test_claim_status_and_submission_events_are_collected_without_raw_payloads() -> None:

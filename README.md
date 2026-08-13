@@ -180,7 +180,7 @@ Plain LangChain could provide model and tool primitives, but would require the a
 
 ## RAG and citations
 
-`PolicyDocumentLoader` parses the Markdown fixture into section-level `PolicyChunk` objects. `ChromaPolicyVectorStore` persists a local collection and uses deterministic offline hash embeddings, avoiding a model download during tests. `PolicyRetriever` applies configurable `top_k` and minimum-relevance thresholds. `CitationFormatter` emits only trusted metadata from retrieved chunks, and the Flow merges only observed tool evidence into the public response.
+`PolicyDocumentLoader` parses the Markdown fixture into section-level `PolicyChunk` objects. `ChromaPolicyVectorStore` persists a local collection and uses deterministic offline hash embeddings, avoiding a model download during tests. `PolicyRetriever` applies configurable `top_k` and minimum-relevance thresholds. For coverage-intent requests, the Flow now performs a configuration-driven, read-only `search_policy` preflight before Crew drafting and passes the resulting trusted evidence context into the task. `CitationFormatter` emits only trusted metadata from retrieved chunks, and the Flow merges only observed tool evidence into the public response.
 
 An unsupported question is not converted into an invented coverage decision. When retrieval returns no sufficiently relevant evidence, the assistant uses explicit insufficient-information language and leaves `sources` empty. Grounding validation rejects coverage assertions without trusted evidence.
 
@@ -205,7 +205,7 @@ Voice is an optional browser enhancement, not a provider-side speech dependency.
 The default test suites are offline and do not require a live DeepSeek key:
 
 ```bash
-# Backend: 171 tests, including endpoint, security, orchestration, and Docker configuration checks
+# Backend: 175 tests, including endpoint, security, orchestration, policy/claim preflight, and Docker configuration checks
 .venv/bin/pytest -q
 
 # Frontend: 27 tests
@@ -237,7 +237,8 @@ A production evolution would add identity and tenant isolation, a managed databa
 | [`docs/provider-adapter-contract.md`](docs/provider-adapter-contract.md) | Provider adapter, timeout, retries, errors, and live-smoke policy. |
 | [`docs/safety-gate-contract.md`](docs/safety-gate-contract.md) | Deterministic request safety boundary. |
 | [`docs/crew-contract.md`](docs/crew-contract.md) | Single-agent CrewAI architecture and approved tools. |
-| [`docs/draft-contract.md`](docs/draft-contract.md) and [`docs/flow-contract.md`](docs/flow-contract.md) | Draft validation and complete Flow lifecycle. |
+| [`docs/draft-contract.md`](docs/draft-contract.md) and [`docs/flow-contract.md`](docs/flow-contract.md) | Draft validation, policy preflight, and complete Flow lifecycle. |
+| [`docs/assessment-alignment.md`](docs/assessment-alignment.md) | Requirement-to-file/test matrix for the attached GenAI Engineer assessment. |
 
 ## Repository and secret policy
 

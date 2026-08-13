@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ..core.config import Settings, get_settings
 from ..core.paths import resolve_configured_path
 from ..models.policy import PolicyChunk
 
@@ -35,8 +36,11 @@ class PolicyDocumentMalformedError(PolicyDocumentError):
 class PolicyDocumentLoader:
     """Create one typed chunk per `## Section N: Title` heading."""
 
-    def load_file(self, path: str | Path) -> list[PolicyChunk]:
-        document_path = resolve_configured_path(path)
+    def __init__(self, settings: Settings | None = None) -> None:
+        self._settings = settings or get_settings()
+
+    def load_file(self, path: str | Path | None = None) -> list[PolicyChunk]:
+        document_path = resolve_configured_path(path or self._settings.policy_file_path)
         try:
             content = document_path.read_text(encoding="utf-8")
         except FileNotFoundError as exc:
