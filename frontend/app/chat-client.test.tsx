@@ -80,6 +80,33 @@ describe("ChatClient", () => {
     );
   });
 
+  it("submits from the textarea with Ctrl+Enter and keeps the composer keyboard-operable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(successResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ChatClient />);
+
+    const messageInput = screen.getByRole("textbox", { name: "Your message" });
+    fireEvent.change(messageInput, { target: { value: "Check claim CLM-9014" } });
+    fireEvent.keyDown(messageInput, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => expect(screen.getByText("Your claim is under review.")).not.toBeNull());
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("moves focus to a concise safe error when a provider request fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("private socket detail")));
+    render(<ChatClient />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Your message" }), {
+      target: { value: "Check claim CLM-9014" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("alert")));
+    expect(screen.getByRole("alert").getAttribute("tabindex")).toBe("-1");
+    expect(screen.getByRole("alert").textContent).not.toContain("private socket detail");
+  });
+
   it("shows a safe error while retaining the user message when the request fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("private socket detail")));
     render(<ChatClient />);

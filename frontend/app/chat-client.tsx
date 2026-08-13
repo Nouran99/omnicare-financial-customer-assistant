@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { useChatState } from "../lib/use-chat-state";
 import { AssistantMessageMetadata } from "./message-metadata";
@@ -24,8 +24,15 @@ const STARTER_PROMPTS = [
 export function ChatClient() {
   const [userId, setUserId] = useState("policyholder-demo");
   const [message, setMessage] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
   const chat = useChatState({ userId });
   const canSubmit = Boolean(message.trim()) && !chat.pending;
+
+  useEffect(() => {
+    if (chat.error) {
+      errorRef.current?.focus();
+    }
+  }, [chat.error]);
 
   async function submitMessage() {
     const outcome = await chat.submit(message);
@@ -107,7 +114,12 @@ export function ChatClient() {
             {chat.pending ? <span className="pending-indicator">Working</span> : null}
           </div>
 
-          <div className="message-history" aria-live="polite" aria-busy={chat.pending}>
+          <div
+            className="message-history"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-busy={chat.pending}
+          >
             {chat.messages.length === 0 ? (
               <div className="empty-conversation">
                 <p className="empty-kicker">Ready when you are</p>
@@ -145,7 +157,13 @@ export function ChatClient() {
           </div>
 
           {chat.error ? (
-            <div className="chat-error" role="alert">
+            <div
+              ref={errorRef}
+              id="chat-error"
+              className="chat-error"
+              role="alert"
+              tabIndex={-1}
+            >
               <span>{chat.error}</span>
               <button type="button" onClick={chat.clearError} aria-label="Dismiss error message">
                 Dismiss
@@ -166,10 +184,11 @@ export function ChatClient() {
               placeholder="Ask a policy or claims question…"
               className="message-input"
               rows={4}
+              aria-describedby="message-help"
               disabled={chat.pending}
             />
             <div className="composer-footer">
-              <p>Press Ctrl/Cmd + Enter to send.</p>
+              <p id="message-help">Press Ctrl/Cmd + Enter to send.</p>
               <button className="send-button" type="submit" disabled={!canSubmit}>
                 {chat.pending ? "Sending…" : "Send message"}
               </button>
