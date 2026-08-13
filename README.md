@@ -78,6 +78,20 @@ The backend package is imported from the repository root through the checked-in 
 .venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000
 ```
 
+The complete backend suite is deterministic and does not require a DeepSeek API key:
+
+```bash
+.venv/bin/pytest -q
+```
+
+The US-047 endpoint suite can be run independently with:
+
+```bash
+.venv/bin/pytest -q tests/test_endpoint_suite.py
+```
+
+It covers `/api/v1/health`, valid and invalid `/api/v1/chat` requests, exact response shape, grounded policy answers, claim-status lookup, isolated claim submission, unsupported coverage, blocked prompt injection, and safe provider failure handling. It uses temporary fixtures and dependency-injected fakes, so it does not call DeepSeek or mutate the committed claims fixture.
+
 The API contract, validation limits, safe error mapping, CORS behavior, request IDs, and structured logging are documented in [`docs/api-contract.md`](docs/api-contract.md). The chat route and its Flow dependency seam are documented in [`docs/chat-route-contract.md`](docs/chat-route-contract.md). The cited policy API journey is documented in [`docs/policy-api-journey.md`](docs/policy-api-journey.md). Claims validation, exact fixture contents, atomic persistence, description retention, and half-up amount rounding are documented in [`docs/claims-data-contract.md`](docs/claims-data-contract.md). Policy chunking, local Chroma indexing, threshold fallback, deterministic offline embeddings, and citation formatting are documented in [`docs/rag-contract.md`](docs/rag-contract.md). The configurable DeepSeek adapter, safe provider-error boundary, fake-provider testing, and live-smoke-test policy are documented in [`docs/provider-adapter-contract.md`](docs/provider-adapter-contract.md). The deterministic safety boundary is documented in [`docs/safety-gate-contract.md`](docs/safety-gate-contract.md), the typed request state in [`docs/flow-state-contract.md`](docs/flow-state-contract.md), the bounded single-agent Crew architecture in [`docs/crew-contract.md`](docs/crew-contract.md), and the structured draft and guardrail contract in [`docs/draft-contract.md`](docs/draft-contract.md), as well as the single-entry orchestration lifecycle in [`docs/flow-contract.md`](docs/flow-contract.md).
 
 ## Configuration
