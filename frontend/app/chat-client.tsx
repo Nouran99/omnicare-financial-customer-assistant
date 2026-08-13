@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useState } from "react";
 
 import { useChatState } from "../lib/use-chat-state";
+import { AssistantMessageMetadata } from "./message-metadata";
 
 const STARTER_PROMPTS = [
   {
@@ -126,6 +127,12 @@ export function ChatClient() {
                     {chatMessage.role === "user" ? "You" : "OmniCare"}
                   </p>
                   <p className="message-content">{chatMessage.content}</p>
+                  {chatMessage.role === "assistant" ? (
+                    <AssistantMessageMetadata
+                      sources={chatMessage.sources}
+                      toolCalls={chatMessage.tool_calls}
+                    />
+                  ) : null}
                 </article>
               ))
             )}

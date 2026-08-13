@@ -310,6 +310,118 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 
+.assistant-message-metadata {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.message-metadata-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.metadata-heading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.citation-list,
+.tool-card-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.citation-item {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.citation-item > span:first-child {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tool-card {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid #aabbb3;
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.tool-card-success {
+  border-left-color: var(--accent);
+  background: #f6fbf8;
+}
+
+.tool-card-failure {
+  border-color: #f0c3bb;
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.tool-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tool-card code {
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.tool-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tool-card-failure .tool-status {
+  color: var(--danger);
+}
+
+.status-marker {
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: #95a29d;
+}
+
+.tool-card-success .status-marker {
+  background: var(--accent);
+}
+
+.tool-card-failure .status-marker {
+  background: var(--danger);
+}
+
+.tool-result-summary {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .assistant-loading {
   display: inline-flex;
   align-items: center;
