@@ -72,6 +72,8 @@ Browser → typed client/state → same-origin Next.js proxy → FastAPI chat ro
         → draft parsing + grounding validation → trusted summary → browser
 ```
 
+A screen-recorded walkthrough is available at [`docs/videos/omnicare-walkthrough.mp4`](docs/videos/omnicare-walkthrough.mp4). It covers the empty state, grounded policy response with citation, claim-status lookup, and claim submission with confirmation metadata.
+
 The repository is organized as follows:
 
 ```text
@@ -239,6 +241,7 @@ A production evolution would add identity and tenant isolation, a managed databa
 | [`docs/crew-contract.md`](docs/crew-contract.md) | Single-agent CrewAI architecture and approved tools. |
 | [`docs/draft-contract.md`](docs/draft-contract.md) and [`docs/flow-contract.md`](docs/flow-contract.md) | Draft validation, policy preflight, and complete Flow lifecycle. |
 | [`docs/assessment-alignment.md`](docs/assessment-alignment.md) | Requirement-to-file/test matrix for the attached GenAI Engineer assessment. |
+| [`docs/videos/omnicare-walkthrough.mp4`](docs/videos/omnicare-walkthrough.mp4) | 120-second screen-recorded product walkthrough. |
 
 ## Repository and secret policy
 
