@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Literal, Protocol
 
@@ -122,10 +123,33 @@ class DeepSeekProvider:
         tools: Sequence[Mapping[str, Any]] | None = None,
         response_schema: type[BaseModel] | None = None,
     ) -> ProviderCompletion:
-        """Create one normalized completion or raise a controlled ``ProviderError``."""
+        """Create one normalized completion with a bounded provider retry policy."""
 
         if not messages:
             raise ProviderError
+        retry_count = self._settings.deepseek_retry_count
+        for attempt in range(retry_count + 1):
+            try:
+                return self._complete_once(
+                    messages,
+                    tools=tools,
+                    response_schema=response_schema,
+                )
+            except ProviderError as exc:
+                self._log_failure(exc)
+                if attempt >= retry_count:
+                    raise
+                if self._settings.deepseek_retry_backoff_seconds > 0:
+                    time.sleep(self._settings.deepseek_retry_backoff_seconds)
+        raise ProviderError  # pragma: no cover - loop always returns or raises
+
+    def _complete_once(
+        self,
+        messages: Sequence[ProviderMessage],
+        *,
+        tools: Sequence[Mapping[str, Any]] | None,
+        response_schema: type[BaseModel] | None,
+    ) -> ProviderCompletion:
         try:
             client = self._get_client()
             request: dict[str, Any] = {
@@ -139,10 +163,8 @@ class DeepSeekProvider:
         except ProviderError:
             raise
         except (OpenAIError, ValueError, TypeError, KeyError, AttributeError) as exc:
-            self._log_failure(exc)
             raise ProviderError from exc
         except Exception as exc:  # pragma: no cover - defensive SDK boundary
-            self._log_failure(exc)
             raise ProviderError from exc
 
     def _get_client(self) -> Any:

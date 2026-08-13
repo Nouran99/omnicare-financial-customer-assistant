@@ -175,3 +175,83 @@ def test_fake_provider_can_replace_the_adapter_boundary() -> None:
 def test_timeout_setting_must_be_positive(timeout: float) -> None:
     with pytest.raises(ValueError, match="timeout"):
         Settings(deepseek_timeout_seconds=timeout)
+
+
+@dataclass
+class SequenceCompletions:
+    response: Any
+    failures_before_success: int = 0
+    requests: list[dict[str, Any]] = field(default_factory=list)
+
+    def create(self, **request: Any) -> Any:
+        self.requests.append(request)
+        if len(self.requests) <= self.failures_before_success:
+            raise TimeoutError("transient provider timeout")
+        return self.response
+
+
+def response_with_content(content: str = "Provider response") -> Any:
+    return SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content=content, tool_calls=[])
+            )
+        ]
+    )
+
+
+def test_provider_retries_three_times_then_returns_eventual_success() -> None:
+    completions = SequenceCompletions(
+        response=response_with_content(),
+        failures_before_success=3,
+    )
+    settings = configured_settings().model_copy(update={"deepseek_retry_count": 3})
+    provider = DeepSeekProvider(
+        settings,
+        client_factory=lambda **_: FakeClient(completions),
+    )
+
+    result = provider.complete([ProviderMessage(role="user", content="Hello")])
+
+    assert result.content == "Provider response"
+    assert len(completions.requests) == 4
+
+
+def test_provider_permanent_failure_is_bounded_by_three_retries() -> None:
+    completions = FakeCompletions(
+        response=None,
+        failure=RuntimeError("permanent provider outage"),
+    )
+    settings = configured_settings().model_copy(update={"deepseek_retry_count": 3})
+    provider = DeepSeekProvider(
+        settings,
+        client_factory=lambda **_: FakeClient(completions),
+    )
+
+    with pytest.raises(ProviderError):
+        provider.complete([ProviderMessage(role="user", content="Hello")])
+
+    assert len(completions.requests) == 4
+
+
+def test_provider_can_disable_retries_for_a_bounded_single_attempt() -> None:
+    completions = FakeCompletions(
+        response=None,
+        failure=RuntimeError("provider outage"),
+    )
+    settings = configured_settings().model_copy(update={"deepseek_retry_count": 0})
+    provider = DeepSeekProvider(
+        settings,
+        client_factory=lambda **_: FakeClient(completions),
+    )
+
+    with pytest.raises(ProviderError):
+        provider.complete([ProviderMessage(role="user", content="Hello")])
+
+    assert len(completions.requests) == 1
+
+
+@pytest.mark.parametrize("retry_count", [-1])
+def test_retry_count_must_not_be_negative(retry_count: int) -> None:
+    with pytest.raises(ValueError, match="retry_count"):
+        Settings(deepseek_retry_count=retry_count)
