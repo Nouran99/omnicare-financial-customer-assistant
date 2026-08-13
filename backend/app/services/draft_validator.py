@@ -1,5 +1,6 @@
 """Deterministic validation for structured Crew drafts."""
 
+import re
 from collections.abc import Mapping
 from typing import Any, Tuple
 
@@ -34,9 +35,21 @@ def _contains_any(value: str, configured: str) -> bool:
     return any(pattern in normalized for pattern in _normalized_patterns(configured))
 
 
-def _has_successful_submit_event(draft: AssistantDraft) -> bool:
+def _has_successful_submit_event(
+    draft: AssistantDraft,
+    *,
+    settings: Settings,
+) -> bool:
+    confirmation_pattern = re.compile(
+        rf"{re.escape(settings.claim_id_prefix)}[0-9A-F]{{{settings.claim_id_random_hex_length}}}",
+        re.IGNORECASE,
+    )
     return any(
-        event.name == "submit_claim" and event.status == "success"
+        event.name == "submit_claim"
+        and event.status == "success"
+        and confirmation_pattern.search(
+            f"{event.arguments or ''} {event.result_summary or ''}"
+        )
         for event in draft.tool_calls
     )
 
@@ -68,12 +81,27 @@ def validate_assistant_draft(
     resolved_settings = settings or get_settings()
     validated = validate_draft_structure(draft, settings=resolved_settings)
 
-    if _contains_any(validated.response, resolved_settings.draft_coverage_assertion_patterns):
-        if not validated.sources:
+    has_empty_policy_retrieval = any(
+        event.name == "search_policy" and event.status != "success"
+        for event in validated.tool_calls
+    )
+    has_coverage_assertion = _contains_any(
+        validated.response,
+        resolved_settings.draft_coverage_assertion_patterns,
+    )
+    has_explicit_limitation = _contains_any(
+        validated.response,
+        resolved_settings.draft_insufficient_information_patterns,
+    )
+    if has_coverage_assertion and not validated.sources:
+        if not (has_empty_policy_retrieval and has_explicit_limitation):
             raise DraftValidationError("coverage_assertion_requires_source")
 
+    if has_empty_policy_retrieval and not validated.sources and not has_explicit_limitation:
+        raise DraftValidationError("insufficient_information_required")
+
     if _contains_any(validated.response, resolved_settings.draft_claim_success_patterns):
-        if not _has_successful_submit_event(validated):
+        if not _has_successful_submit_event(validated, settings=resolved_settings):
             raise DraftValidationError("false_claim_success")
 
     return validated

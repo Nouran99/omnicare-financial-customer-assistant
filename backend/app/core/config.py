@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     crew_process: str = "sequential"
     draft_coverage_assertion_patterns: str = "coverage,covers,covered,eligible,will pay,does not cover"
     draft_claim_success_patterns: str = "claim submitted,claim has been submitted,submission successful,submitted successfully,confirmation id,confirmation number"
+    draft_insufficient_information_patterns: str = "insufficient information,not enough information,do not have enough information,don't have enough information,cannot determine,unable to determine,no relevant policy evidence,no sufficiently relevant policy evidence"
     crew_task_description: str = "Process one OmniCare policy or claims support request using only the approved tools and trusted evidence. For policy coverage questions, call search_policy before drafting. For claim status questions, call get_claim_status. For claim submission, call submit_claim only after all required fields are present. Follow the deterministic safety result and do not invent coverage or claim outcomes."
     crew_task_request_context_template: str = "User request on the {input_channel} channel: {message}"
     crew_task_expected_output: str = "Return an AssistantDraft with response, sources, tool_calls, safety_result, optional follow_up_question, and optional error_code. Cite policy evidence for coverage assertions and report claim success only after a successful submit_claim event."

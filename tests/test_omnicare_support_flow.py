@@ -160,6 +160,8 @@ def test_claim_status_and_submission_events_are_collected_without_raw_payloads()
             ClaimToolEvent(
                 name="get_claim_status",
                 status="success",
+                claim_id="CLM-8821",
+                claim_status="Under Review",
                 result_summary="Requested claim status returned.",
             ),
         ),
@@ -186,7 +188,8 @@ def test_claim_status_and_submission_events_are_collected_without_raw_payloads()
             ClaimToolEvent(
                 name="submit_claim",
                 status="success",
-                result_summary="Claim submitted successfully.",
+                confirmation_id="CLM-ABCDEF12",
+                result_summary="Claim submitted successfully. Confirmation ID: CLM-ABCDEF12.",
             ),
         ),
     )
@@ -215,6 +218,8 @@ def test_claim_status_draft_sources_are_replaced_with_trusted_tool_sources() -> 
             ClaimToolEvent(
                 name="get_claim_status",
                 status="success",
+                claim_id="CLM-8821",
+                claim_status="Under Review",
                 result_summary="Requested claim status returned.",
             ),
         ),

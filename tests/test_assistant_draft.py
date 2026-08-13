@@ -53,7 +53,7 @@ def submit_success_event() -> ToolCallSummary:
     return ToolCallSummary(
         name="submit_claim",
         status="success",
-        result_summary="Claim submission succeeded",
+        result_summary="Claim submitted successfully. Confirmation ID: CLM-ABCDEF12.",
     )
 
 
@@ -88,6 +88,67 @@ def test_claim_success_requires_a_successful_submit_event() -> None:
     draft = AssistantDraft(
         response="Your claim has been submitted successfully.",
         tool_calls=[submit_success_event()],
+        safety_result=allowed_result(),
+    )
+
+    assert validate_assistant_draft(draft, settings=build_settings()) == draft
+
+
+def test_claim_success_without_confirmation_id_is_rejected() -> None:
+    draft = AssistantDraft(
+        response="Your claim has been submitted successfully.",
+        tool_calls=[
+            ToolCallSummary(
+                name="submit_claim",
+                status="success",
+                result_summary="Claim submitted successfully.",
+            )
+        ],
+        safety_result=allowed_result(),
+    )
+
+    with pytest.raises(DraftValidationError) as exc_info:
+        validate_assistant_draft(draft, settings=build_settings())
+
+    assert exc_info.value.code == "false_claim_success"
+
+
+def test_unsupported_policy_answer_requires_explicit_limitation() -> None:
+    unsupported = AssistantDraft(
+        response="The policy has a $25,000 limit for this loss.",
+        tool_calls=[
+            ToolCallSummary(
+                name="search_policy",
+                status="not_found",
+                arguments="unlisted loss",
+                result_summary="No relevant policy evidence was found.",
+            )
+        ],
+        safety_result=allowed_result(),
+    )
+    with pytest.raises(DraftValidationError) as exc_info:
+        validate_assistant_draft(unsupported, settings=build_settings())
+    assert exc_info.value.code == "insufficient_information_required"
+
+    limited = unsupported.model_copy(
+        update={
+            "response": "I do not have enough information to determine coverage for that loss."
+        }
+    )
+    assert validate_assistant_draft(limited, settings=build_settings()) == limited
+
+
+def test_status_lookup_can_pass_without_policy_sources() -> None:
+    draft = AssistantDraft(
+        response="Claim CLM-8821 is currently Approved.",
+        tool_calls=[
+            ToolCallSummary(
+                name="get_claim_status",
+                status="success",
+                arguments="CLM-8821",
+                result_summary="Claim status: Approved.",
+            )
+        ],
         safety_result=allowed_result(),
     )
 
